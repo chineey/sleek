@@ -266,7 +266,7 @@ export default function Admin() {
   // Convert plain text breaks into premium styled HTML paragraph tags (keeps existing tags intact)
   const formatContent = (text) => {
     const trimmed = text.trim();
-    if (trimmed.startsWith('<p>') || trimmed.startsWith('<div')) {
+    if (trimmed.startsWith('<p>') || trimmed.startsWith('<div') || trimmed.startsWith('<blockquote')) {
       return trimmed;
     }
     return trimmed
@@ -276,6 +276,13 @@ export default function Admin() {
       .map((line) => {
         // Replace tabs with 4 HTML non-breaking spaces
         const formattedLine = line.replace(/\t/g, '&nbsp;&nbsp;&nbsp;&nbsp;');
+        
+        // If line starts with a quote character (>), wrap in a blockquote
+        if (formattedLine.startsWith('>')) {
+          const quoteContent = formattedLine.substring(1).trim();
+          return `<blockquote class="reader-quote">${quoteContent}</blockquote>`;
+        }
+        
         return `<p>${formattedLine}</p>`;
       })
       .join('\n');
@@ -284,7 +291,11 @@ export default function Admin() {
   // Convert premium HTML article tags back into plain text breaks for editing
   const deformatContent = (html) => {
     if (!html) return '';
-    let text = html.replace(/<\/p>/g, '\n\n');
+    let text = html;
+    // Replace reader-quote with markdown-style blockquote symbol
+    text = text.replace(/<blockquote class="reader-quote">([\s\S]*?)<\/blockquote>/gi, '>$1\n\n');
+    text = text.replace(/<blockquote>([\s\S]*?)<\/blockquote>/gi, '>$1\n\n');
+    text = text.replace(/<\/p>/g, '\n\n');
     text = text.replace(/<br\s*\/?>/g, '\n');
     // Replace non-breaking space indents back to tabs
     text = text.replace(/&nbsp;&nbsp;&nbsp;&nbsp;/g, '\t');
