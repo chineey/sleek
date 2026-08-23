@@ -1615,8 +1615,9 @@ img {
     line-height: 1.3;
     color: var(--color-bronze);
     font-style: italic;
-    border-left: 2px solid var(--color-bronze);
-    padding-left: 2rem;
+    border-top: 1px solid rgba(184, 145, 89, 0.3);
+    border-bottom: 1px solid rgba(184, 145, 89, 0.3);
+    padding: 2rem 0;
     margin: 2rem 0;
     font-weight: 300;
 }
@@ -1632,7 +1633,7 @@ img {
 
     .reader-quote {
         font-size: 1.6rem;
-        padding-left: 1.5rem;
+        padding: 1.5rem 0;
     }
 
     .reader-close-btn {

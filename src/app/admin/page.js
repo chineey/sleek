@@ -255,7 +255,7 @@ export default function Admin() {
     if (!img) return;
 
     // The viewport is responsive.
-    // The canvas output is 1200x900 (articles) or 1200x1600 (cover Settings).
+    // The canvas output is 1200x900 (articles) or 2400x1500 (cover Settings).
     // The CSS transform on the image is: translate(ox, oy) scale(zoom)
     // with transform-origin: center center.
     //
@@ -273,8 +273,8 @@ export default function Admin() {
     const displayH = nh * fitRatio;
 
     const canvas = document.createElement('canvas');
-    const canvasWidth = activeTab === 'cover' ? 1200 : 1200;
-    const canvasHeight = activeTab === 'cover' ? 1600 : 900;
+    const canvasWidth = activeTab === 'cover' ? 2400 : 1200;
+    const canvasHeight = activeTab === 'cover' ? 1500 : 900;
     canvas.width = canvasWidth;
     canvas.height = canvasHeight;
     const ctx = canvas.getContext('2d');
@@ -1028,7 +1028,7 @@ export default function Admin() {
               Cover Background Photo
             </h2>
             <div className="form-group">
-              <label>Upload Background Image (3:4 Aspect Ratio)</label>
+              <label>Upload Background Image (16:10 Aspect Ratio)</label>
               <label
                 className="upload-zone"
                 style={{
@@ -1079,7 +1079,7 @@ export default function Admin() {
                       Change Photo
                     </button>
                   </label>
-                  <div className="upload-preview" style={{ aspectRatio: '3/4' }}>
+                  <div className="upload-preview" style={{ aspectRatio: '16/10' }}>
                     <img src={coverImage} alt="Uploaded cover preview" />
                   </div>
                 </div>
@@ -1137,7 +1137,7 @@ export default function Admin() {
               style={{
                 width: '100%',
                 maxWidth: '400px',
-                aspectRatio: activeTab === 'cover' ? '3/4' : '4/3',
+                aspectRatio: activeTab === 'cover' ? '16/10' : '4/3',
                 position: 'relative',
                 overflow: 'hidden',
                 border: '1px solid var(--color-bronze)',
