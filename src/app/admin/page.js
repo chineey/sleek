@@ -33,6 +33,79 @@ export default function Admin() {
   const [isDragging, setIsDragging] = useState(false);
   const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
 
+  // Cover Settings states
+  const [activeTab, setActiveTab] = useState('articles'); // 'articles' | 'cover'
+  const [coverTitle, setCoverTitle] = useState('');
+  const [coverIssue, setCoverIssue] = useState('');
+  const [coverLabel, setCoverLabel] = useState('');
+  const [coverTagline, setCoverTagline] = useState('');
+  const [coverUrl, setCoverUrl] = useState('');
+  const [coverSocial, setCoverSocial] = useState('');
+  const [coverImage, setCoverImage] = useState('');
+
+  // Fetch cover settings
+  useEffect(() => {
+    if (status === 'authenticated') {
+      fetchCoverSettings();
+    }
+  }, [status]);
+
+  const fetchCoverSettings = async () => {
+    try {
+      const res = await fetch('/api/cover');
+      if (res.ok) {
+        const data = await res.json();
+        setCoverTitle(data.title);
+        setCoverIssue(data.issue);
+        setCoverLabel(data.label);
+        setCoverTagline(data.tagline);
+        setCoverUrl(data.url);
+        setCoverSocial(data.social);
+        setCoverImage(data.image);
+      }
+    } catch (err) {
+      console.error('Failed to fetch cover settings:', err);
+    }
+  };
+
+  const handleSaveCoverSettings = async (e) => {
+    e.preventDefault();
+
+
+    setIsSubmitting(true);
+    setFeedback({ message: '', type: '' });
+
+    try {
+      const res = await fetch('/api/cover', {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          title: coverTitle,
+          issue: coverIssue,
+          label: coverLabel,
+          tagline: coverTagline,
+          url: coverUrl,
+          social: coverSocial,
+          image: coverImage,
+        }),
+      });
+
+      const data = await res.json();
+
+      if (res.ok) {
+        setFeedback({ message: 'Cover settings saved successfully!', type: 'success' });
+      } else {
+        setFeedback({ message: data.error || 'Failed to save cover settings.', type: 'error' });
+      }
+    } catch (err) {
+      setFeedback({ message: 'Network error saving cover settings.', type: 'error' });
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
   // Route protection
   useEffect(() => {
     if (status === 'unauthenticated') {
@@ -120,7 +193,11 @@ export default function Admin() {
   // Handle image upload select (triggers client-side crop modal first)
   const handleImageUploadSelect = (e) => {
     const file = e.target.files?.[0];
-    if (!file || !selectedArticleId) return;
+    if (!file) return;
+    if (activeTab === 'articles' && (!selectedArticleId || selectedArticleId === '')) {
+      setFeedback({ message: 'Please select an action first.', type: 'error' });
+      return;
+    }
 
     setPendingFile(file);
 
@@ -150,7 +227,7 @@ export default function Admin() {
     setIsDragging(false);
   };
 
-  // Drag-and-pan touch handlers for mobile/tablet cropping
+  // Touch-drag support for tablets and mobile devices
   const handleTouchStart = (e) => {
     const touch = e.touches[0];
     setIsDragging(true);
@@ -176,8 +253,8 @@ export default function Admin() {
     const img = document.getElementById('crop-target-img');
     if (!img) return;
 
-    // The viewport is responsive (max 400x300, aspect-ratio 4:3).
-    // The canvas output is always 1200x900.
+    // The viewport is responsive.
+    // The canvas output is 1200x900 (articles) or 1600x1000 (cover Settings).
     // The CSS transform on the image is: translate(ox, oy) scale(zoom)
     // with transform-origin: center center.
     //
@@ -195,14 +272,16 @@ export default function Admin() {
     const displayH = nh * fitRatio;
 
     const canvas = document.createElement('canvas');
-    canvas.width = 1200;
-    canvas.height = 900;
+    const canvasWidth = activeTab === 'cover' ? 1600 : 1200;
+    const canvasHeight = activeTab === 'cover' ? 1000 : 900;
+    canvas.width = canvasWidth;
+    canvas.height = canvasHeight;
     const ctx = canvas.getContext('2d');
-    ctx.clearRect(0, 0, 1200, 900);
+    ctx.clearRect(0, 0, canvasWidth, canvasHeight);
 
     // Scale factor from viewport to canvas
-    const scaleX = 1200 / vpW;
-    const scaleY = 900 / vpH;
+    const scaleX = canvasWidth / vpW;
+    const scaleY = canvasHeight / vpH;
 
     ctx.save();
     // Scale viewport coordinates → canvas coordinates
@@ -242,7 +321,11 @@ export default function Admin() {
 
           const data = await res.json();
           if (res.ok) {
-            setImageUrl(data.url);
+            if (activeTab === 'cover') {
+              setCoverImage(data.url);
+            } else {
+              setImageUrl(data.url);
+            }
             setFeedback({ message: 'Cropped photo uploaded successfully.', type: 'success' });
           } else {
             setFeedback({ message: data.error || 'Failed to upload photo.', type: 'error' });
@@ -490,305 +573,517 @@ export default function Admin() {
         </button>
       </header>
 
-      {/* Editor selector dropdown */}
-      <div className="form-group" style={{ marginBottom: '3rem', maxWidth: '500px' }}>
-        <label htmlFor="article-select" style={{ fontSize: '0.8rem', color: 'var(--color-bronze)' }}>
-          Select Article Action
-        </label>
-        <select
-          id="article-select"
-          className="form-select"
-          value={selectedArticleId}
-          onChange={handleSelectArticle}
-          style={{ marginTop: '0.5rem', border: '1px solid var(--color-bronze)' }}
+      {/* Tabs */}
+      <div style={{ display: 'flex', gap: '2rem', borderBottom: '1px solid var(--color-border)', marginBottom: '3rem' }}>
+        <button
+          type="button"
+          onClick={() => { setActiveTab('articles'); setFeedback({ message: '', type: '' }); }}
+          style={{
+            background: 'none',
+            border: 'none',
+            color: activeTab === 'articles' ? 'var(--color-bronze)' : 'var(--color-muted)',
+            fontSize: '0.85rem',
+            fontWeight: 600,
+            letterSpacing: '0.15em',
+            padding: '1rem 0',
+            borderBottom: activeTab === 'articles' ? '2px solid var(--color-bronze)' : '2px solid transparent',
+            cursor: 'pointer',
+            textTransform: 'uppercase'
+          }}
         >
-          <option value="">-- Choose an action --</option>
-          <option value="new">+ Create New Article</option>
-          <optgroup label="Edit Existing Articles">
-            {articlesList.map((art) => (
-              <option key={art.id} value={art.id}>
-                {art.title} ({art.category})
-              </option>
-            ))}
-          </optgroup>
-        </select>
+          Articles Feed
+        </button>
+        <button
+          type="button"
+          onClick={() => { setActiveTab('cover'); setFeedback({ message: '', type: '' }); }}
+          style={{
+            background: 'none',
+            border: 'none',
+            color: activeTab === 'cover' ? 'var(--color-bronze)' : 'var(--color-muted)',
+            fontSize: '0.85rem',
+            fontWeight: 600,
+            letterSpacing: '0.15em',
+            padding: '1rem 0',
+            borderBottom: activeTab === 'cover' ? '2px solid var(--color-bronze)' : '2px solid transparent',
+            cursor: 'pointer',
+            textTransform: 'uppercase'
+          }}
+        >
+          Cover Settings
+        </button>
       </div>
 
-      <div className="admin-grid" style={{ opacity: isFormEnabled ? 1 : 0.4, transition: 'opacity 0.3s' }}>
-        {/* Left Column: Edit/Write Form */}
-        <div>
-          <h2 className="subtitle-tag" style={{ marginBottom: '2rem' }}>
-            {selectedArticleId === 'new' ? 'Create Article Details' : 'Edit Article Details'}
-          </h2>
-          <form onSubmit={handleSubmitForm} className="editor-form">
-            <div className="form-group">
-              <label htmlFor="title">Title</label>
-              <input
-                id="title"
-                type="text"
-                className="form-input"
-                value={title}
-                onChange={(e) => setTitle(e.target.value)}
-                required
-                disabled={!isFormEnabled || isSubmitting}
-                placeholder={isFormEnabled ? 'e.g. Concrete & Silk' : 'Choose an action first...'}
-              />
-            </div>
-
-            <div className="form-group">
-              <label htmlFor="category">Category</label>
-              <select
-                id="category"
-                className="form-select"
-                value={category}
-                onChange={(e) => setCategory(e.target.value)}
-                disabled={!isFormEnabled || isSubmitting}
-              >
-                <option value="Fashion">Fashion</option>
-                <option value="Culture">Culture</option>
-                <option value="Design">Design</option>
-                <option value="Editorial">Editorial</option>
-              </select>
-            </div>
-
-            <div className="form-group">
-              <label htmlFor="author">Author Attribution</label>
-              <input
-                id="author"
-                type="text"
-                className="form-input"
-                value={author}
-                onChange={(e) => setAuthor(e.target.value)}
-                required
-                disabled={!isFormEnabled || isSubmitting}
-              />
-            </div>
-
-            <div className="form-group">
-              <label htmlFor="date">Publication Date Text</label>
-              <input
-                id="date"
-                type="text"
-                className="form-input"
-                value={date}
-                onChange={(e) => setDate(e.target.value)}
-                required
-                disabled={!isFormEnabled || isSubmitting}
-              />
-            </div>
-
-            <div className="form-group">
-              <label htmlFor="content">Content</label>
-              <textarea
-                id="content"
-                className="form-textarea"
-                value={content}
-                onChange={(e) => setContent(e.target.value)}
-                onKeyDown={handleTextareaKeyDown}
-                required
-                disabled={!isFormEnabled || isSubmitting}
-                placeholder={isFormEnabled ? 'Write your text paragraphs here...' : 'Choose an action first...'}
-              />
-            </div>
-
-            {feedback.message && (
-              <div className={`admin-feedback ${feedback.type}`}>{feedback.message}</div>
-            )}
-
-            <div className="admin-button-group">
-              <button
-                type="submit"
-                className="publish-btn"
-                style={{ flex: 1 }}
-                disabled={!isFormEnabled || isSubmitting || isUploading}
-              >
-                {selectedArticleId === 'new'
-                  ? isSubmitting
-                    ? 'PUBLISHING...'
-                    : 'PUBLISH ARTICLE'
-                  : isSubmitting
-                  ? 'SAVING...'
-                  : 'SAVE CHANGES'}
-              </button>
-
-              {selectedArticleId && selectedArticleId !== 'new' && (
-                <button
-                  type="button"
-                  className="delete-btn"
-                  style={{ flex: 1 }}
-                  onClick={handleDelete}
-                  disabled={isSubmitting || isUploading}
-                >
-                  {isSubmitting ? 'DELETING...' : 'DELETE ARTICLE'}
-                </button>
-              )}
-            </div>
-          </form>
-        </div>
-
-        {/* Right Column: Image Uploader & Preview */}
-        <div>
-          <h2 className="subtitle-tag" style={{ marginBottom: '2rem' }}>
-            Article Photo
-          </h2>
-
-          <div className="form-group">
-            <label>Upload Image</label>
-            <label
-              className="upload-zone"
-              style={{
-                cursor: isFormEnabled ? 'pointer' : 'not-allowed',
-                pointerEvents: isFormEnabled ? 'auto' : 'none',
-              }}
-            >
-              <input
-                id="upload-file-input"
-                type="file"
-                accept="image/*"
-                onChange={handleImageUploadSelect}
-                style={{ display: 'none' }}
-                disabled={!isFormEnabled || isUploading || isSubmitting}
-              />
-              <svg
-                width="32"
-                height="32"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="var(--color-bronze)"
-                strokeWidth="1.5"
-                style={{ marginBottom: '0.5rem' }}
-              >
-                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M17 8l-5-5-5 5M12 3v12" />
-              </svg>
-              <span className="upload-text">
-                {!isFormEnabled
-                  ? 'Select an action first to upload photo'
-                  : isUploading
-                  ? 'Uploading to Cloudinary...'
-                  : imageUrl
-                  ? 'Click to change photo'
-                  : 'Click to upload editorial photo'}
-              </span>
+      {activeTab === 'articles' ? (
+        <>
+          {/* Editor selector dropdown */}
+          <div className="form-group" style={{ marginBottom: '3rem', maxWidth: '500px' }}>
+            <label htmlFor="article-select" style={{ fontSize: '0.8rem', color: 'var(--color-bronze)' }}>
+              Select Article Action
             </label>
-
-            {imageUrl && (
-              <div className="form-group" style={{ marginTop: '2rem' }}>
-                <label style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <span>Photo Preview</span>
-                  <button
-                    type="button"
-                    onClick={() => document.getElementById('upload-file-input').click()}
-                    style={{
-                      background: 'none',
-                      border: 'none',
-                      color: 'var(--color-bronze)',
-                      fontSize: '0.75rem',
-                      cursor: 'pointer',
-                      textDecoration: 'underline',
-                      padding: 0
-                    }}
-                  >
-                    Change Photo
-                  </button>
-                </label>
-                <div className="upload-preview">
-                  <img src={imageUrl} alt="Uploaded preview" />
-                </div>
-              </div>
-            )}
+            <select
+              id="article-select"
+              className="form-select"
+              value={selectedArticleId}
+              onChange={handleSelectArticle}
+              style={{ marginTop: '0.5rem', border: '1px solid var(--color-bronze)' }}
+            >
+              <option value="">-- Choose an action --</option>
+              <option value="new">+ Create New Article</option>
+              <optgroup label="Edit Existing Articles">
+                {articlesList.map((art) => (
+                  <option key={art.id} value={art.id}>
+                    {art.title} ({art.category})
+                  </option>
+                ))}
+              </optgroup>
+            </select>
           </div>
-        </div>
-      </div>
 
-      {/* Reordering list panel */}
-      {articlesList.length > 0 && (
-        <div style={{ marginTop: '6rem', borderTop: '1px solid var(--color-border)', paddingTop: '4rem' }}>
-          <h2 className="subtitle-tag" style={{ marginBottom: '1.5rem' }}>
-            Arrange Cards Layout
-          </h2>
-          <p style={{ color: 'var(--color-muted)', fontSize: '0.85rem', marginBottom: '2.5rem' }}>
-            Use the up (▲) and down (▼) buttons to reorder how the article cards are displayed on the main feed.
-          </p>
+          <div className="admin-grid" style={{ opacity: isFormEnabled ? 1 : 0.4, transition: 'opacity 0.3s' }}>
+            {/* Left Column: Edit/Write Form */}
+            <div>
+              <h2 className="subtitle-tag" style={{ marginBottom: '2rem' }}>
+                {selectedArticleId === 'new' ? 'Create Article Details' : 'Edit Article Details'}
+              </h2>
+              <form onSubmit={handleSubmitForm} className="editor-form">
+                <div className="form-group">
+                  <label htmlFor="title">Title</label>
+                  <input
+                    id="title"
+                    type="text"
+                    className="form-input"
+                    value={title}
+                    onChange={(e) => setTitle(e.target.value)}
+                    required
+                    disabled={!isFormEnabled || isSubmitting}
+                    placeholder={isFormEnabled ? 'e.g. Concrete & Silk' : 'Choose an action first...'}
+                  />
+                </div>
 
-          <div
-            className="reorder-list"
-            style={{
-              display: 'flex',
-              flexDirection: 'column',
-              gap: '1rem',
-              maxWidth: '650px',
-            }}
-          >
-            {articlesList.map((art, idx) => (
+                <div className="form-group">
+                  <label htmlFor="category">Category</label>
+                  <select
+                    id="category"
+                    className="form-select"
+                    value={category}
+                    onChange={(e) => setCategory(e.target.value)}
+                    disabled={!isFormEnabled || isSubmitting}
+                  >
+                    <option value="Fashion">Fashion</option>
+                    <option value="Culture">Culture</option>
+                    <option value="Design">Design</option>
+                    <option value="Editorial">Editorial</option>
+                  </select>
+                </div>
+
+                <div className="form-group">
+                  <label htmlFor="author">Author Attribution</label>
+                  <input
+                    id="author"
+                    type="text"
+                    className="form-input"
+                    value={author}
+                    onChange={(e) => setAuthor(e.target.value)}
+                    required
+                    disabled={!isFormEnabled || isSubmitting}
+                  />
+                </div>
+
+                <div className="form-group">
+                  <label htmlFor="date">Publication Date Text</label>
+                  <input
+                    id="date"
+                    type="text"
+                    className="form-input"
+                    value={date}
+                    onChange={(e) => setDate(e.target.value)}
+                    required
+                    disabled={!isFormEnabled || isSubmitting}
+                  />
+                </div>
+
+                <div className="form-group">
+                  <label htmlFor="content">Content</label>
+                  <textarea
+                    id="content"
+                    className="form-textarea"
+                    value={content}
+                    onChange={(e) => setContent(e.target.value)}
+                    onKeyDown={handleTextareaKeyDown}
+                    required
+                    disabled={!isFormEnabled || isSubmitting}
+                    placeholder={isFormEnabled ? 'Write your text paragraphs here...' : 'Choose an action first...'}
+                  />
+                </div>
+
+                {feedback.message && (
+                  <div className={`admin-feedback ${feedback.type}`}>{feedback.message}</div>
+                )}
+
+                <div className="admin-button-group">
+                  <button
+                    type="submit"
+                    className="publish-btn"
+                    style={{ flex: 1 }}
+                    disabled={!isFormEnabled || isSubmitting || isUploading}
+                  >
+                    {selectedArticleId === 'new'
+                      ? isSubmitting
+                        ? 'PUBLISHING...'
+                        : 'PUBLISH ARTICLE'
+                      : isSubmitting
+                      ? 'SAVING...'
+                      : 'SAVE CHANGES'}
+                  </button>
+
+                  {selectedArticleId && selectedArticleId !== 'new' && (
+                    <button
+                      type="button"
+                      className="delete-btn"
+                      style={{ flex: 1 }}
+                      onClick={handleDelete}
+                      disabled={isSubmitting || isUploading}
+                    >
+                      {isSubmitting ? 'DELETING...' : 'DELETE ARTICLE'}
+                    </button>
+                  )}
+                </div>
+              </form>
+            </div>
+
+            {/* Right Column: Image Uploader & Preview */}
+            <div>
+              <h2 className="subtitle-tag" style={{ marginBottom: '2rem' }}>
+                Article Photo
+              </h2>
+
+              <div className="form-group">
+                <label>Upload Image (4:3 Aspect Ratio)</label>
+                <label
+                  className="upload-zone"
+                  style={{
+                    cursor: isFormEnabled ? 'pointer' : 'not-allowed',
+                    pointerEvents: isFormEnabled ? 'auto' : 'none',
+                  }}
+                >
+                  <input
+                    id="upload-file-input"
+                    type="file"
+                    accept="image/*"
+                    onChange={handleImageUploadSelect}
+                    style={{ display: 'none' }}
+                    disabled={!isFormEnabled || isUploading || isSubmitting}
+                  />
+                  <svg
+                    width="32"
+                    height="32"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="var(--color-bronze)"
+                    strokeWidth="1.5"
+                    style={{ marginBottom: '0.5rem' }}
+                  >
+                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M17 8l-5-5-5 5M12 3v12" />
+                  </svg>
+                  <span className="upload-text">
+                    {!isFormEnabled
+                      ? 'Select an action first to upload photo'
+                      : isUploading
+                      ? 'Uploading to Cloudinary...'
+                      : imageUrl
+                      ? 'Click to change photo'
+                      : 'Click to upload editorial photo'}
+                  </span>
+                </label>
+
+                {imageUrl && (
+                  <div className="form-group" style={{ marginTop: '2rem' }}>
+                    <label style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <span>Photo Preview</span>
+                      <button
+                        type="button"
+                        onClick={() => document.getElementById('upload-file-input').click()}
+                        style={{
+                          background: 'none',
+                          border: 'none',
+                          color: 'var(--color-bronze)',
+                          fontSize: '0.75rem',
+                          cursor: 'pointer',
+                          textDecoration: 'underline',
+                          padding: 0
+                        }}
+                      >
+                        Change Photo
+                      </button>
+                    </label>
+                    <div className="upload-preview">
+                      <img src={imageUrl} alt="Uploaded preview" />
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+
+          {/* Reordering list panel */}
+          {articlesList.length > 0 && (
+            <div style={{ marginTop: '6rem', borderTop: '1px solid var(--color-border)', paddingTop: '4rem' }}>
+              <h2 className="subtitle-tag" style={{ marginBottom: '1.5rem' }}>
+                Arrange Cards Layout
+              </h2>
+              <p style={{ color: 'var(--color-muted)', fontSize: '0.85rem', marginBottom: '2.5rem' }}>
+                Use the up (▲) and down (▼) buttons to reorder how the article cards are displayed on the main feed.
+              </p>
+
               <div
-                key={art.id}
+                className="reorder-list"
                 style={{
                   display: 'flex',
-                  justifyContent: 'space-between',
-                  alignItems: 'center',
-                  padding: '1.2rem 1.5rem',
-                  backgroundColor: 'var(--color-black-card)',
-                  border: '1px solid var(--color-border)',
+                  flexDirection: 'column',
+                  gap: '1rem',
+                  maxWidth: '650px',
                 }}
               >
-                <div style={{ display: 'flex', alignItems: 'center', gap: '1.5rem' }}>
-                  <span
+                {articlesList.map((art, idx) => (
+                  <div
+                    key={art.id}
                     style={{
-                      color: 'var(--color-bronze)',
-                      fontSize: '0.85rem',
-                      fontFamily: 'var(--font-serif)',
-                      width: '25px',
+                      display: 'flex',
+                      justifyContent: 'space-between',
+                      alignItems: 'center',
+                      padding: '1.2rem 1.5rem',
+                      backgroundColor: 'var(--color-black-card)',
+                      border: '1px solid var(--color-border)',
                     }}
                   >
-                    #{idx + 1}
-                  </span>
-                  <span style={{ fontSize: '0.95rem', fontWeight: 500 }}>{art.title}</span>
-                  <span
-                    style={{
-                      fontSize: '0.7rem',
-                      color: 'var(--color-muted)',
-                      textTransform: 'uppercase',
-                      letterSpacing: '0.05em',
-                    }}
-                  >
-                    ({art.category})
-                  </span>
-                </div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '1.5rem' }}>
+                      <span
+                        style={{
+                          color: 'var(--color-bronze)',
+                          fontSize: '0.85rem',
+                          fontFamily: 'var(--font-serif)',
+                          width: '25px',
+                        }}
+                      >
+                        #{idx + 1}
+                      </span>
+                      <span style={{ fontSize: '0.95rem', fontWeight: 500 }}>{art.title}</span>
+                      <span
+                        style={{
+                          fontSize: '0.7rem',
+                          color: 'var(--color-muted)',
+                          textTransform: 'uppercase',
+                          letterSpacing: '0.05em',
+                        }}
+                      >
+                        ({art.category})
+                      </span>
+                    </div>
 
-                <div style={{ display: 'flex', gap: '0.5rem' }}>
-                  <button
-                    type="button"
-                    onClick={() => handleMove(idx, 'up')}
-                    disabled={idx === 0 || isSubmitting}
-                    style={{
-                      background: 'transparent',
-                      border: '1px solid var(--color-border)',
-                      color: 'var(--color-white)',
-                      padding: '0.4rem 0.8rem',
-                      cursor: idx === 0 ? 'not-allowed' : 'pointer',
-                      opacity: idx === 0 ? 0.3 : 1,
-                    }}
-                  >
-                    ▲
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => handleMove(idx, 'down')}
-                    disabled={idx === articlesList.length - 1 || isSubmitting}
-                    style={{
-                      background: 'transparent',
-                      border: '1px solid var(--color-border)',
-                      color: 'var(--color-white)',
-                      padding: '0.4rem 0.8rem',
-                      cursor: idx === articlesList.length - 1 ? 'not-allowed' : 'pointer',
-                      opacity: idx === articlesList.length - 1 ? 0.3 : 1,
-                    }}
-                  >
-                    ▼
-                  </button>
-                </div>
+                    <div style={{ display: 'flex', gap: '0.5rem' }}>
+                      <button
+                        type="button"
+                        onClick={() => handleMove(idx, 'up')}
+                        disabled={idx === 0 || isSubmitting}
+                        style={{
+                          background: 'transparent',
+                          border: '1px solid var(--color-border)',
+                          color: 'var(--color-white)',
+                          padding: '0.4rem 0.8rem',
+                          cursor: idx === 0 ? 'not-allowed' : 'pointer',
+                          opacity: idx === 0 ? 0.3 : 1,
+                        }}
+                      >
+                        ▲
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleMove(idx, 'down')}
+                        disabled={idx === articlesList.length - 1 || isSubmitting}
+                        style={{
+                          background: 'transparent',
+                          border: '1px solid var(--color-border)',
+                          color: 'var(--color-white)',
+                          padding: '0.4rem 0.8rem',
+                          cursor: idx === articlesList.length - 1 ? 'not-allowed' : 'pointer',
+                          opacity: idx === articlesList.length - 1 ? 0.3 : 1,
+                        }}
+                      >
+                        ▼
+                      </button>
+                    </div>
+                  </div>
+                ))}
               </div>
-            ))}
+            </div>
+          )}
+        </>
+      ) : (
+        <div className="admin-grid">
+          {/* Left Column: Cover Fields */}
+          <div>
+            <h2 className="subtitle-tag" style={{ marginBottom: '2rem' }}>
+              Cover Text Parameters
+            </h2>
+            <form onSubmit={handleSaveCoverSettings} className="editor-form">
+              <div className="form-group">
+                <label htmlFor="coverTitleInput">Cover Title (e.g. SLEEK)</label>
+                <input
+                  id="coverTitleInput"
+                  type="text"
+                  className="form-input"
+                  value={coverTitle}
+                  onChange={(e) => setCoverTitle(e.target.value)}
+                  placeholder="Enter Cover Title..."
+                  disabled={isSubmitting}
+                />
+              </div>
+
+              <div className="form-group">
+                <label htmlFor="coverIssueInput">Issue Number (e.g. ISH. 01)</label>
+                <input
+                  id="coverIssueInput"
+                  type="text"
+                  className="form-input"
+                  value={coverIssue}
+                  onChange={(e) => setCoverIssue(e.target.value)}
+                  placeholder="Enter Issue Number..."
+                  disabled={isSubmitting}
+                />
+              </div>
+
+              <div className="form-group">
+                <label htmlFor="coverLabelInput">Magazine Label (e.g. MAGAZINE)</label>
+                <input
+                  id="coverLabelInput"
+                  type="text"
+                  className="form-input"
+                  value={coverLabel}
+                  onChange={(e) => setCoverLabel(e.target.value)}
+                  placeholder="Enter Magazine Label..."
+                  disabled={isSubmitting}
+                />
+              </div>
+
+              <div className="form-group">
+                <label htmlFor="coverTaglineInput">Cover Tagline (e.g. A New WAVE)</label>
+                <input
+                  id="coverTaglineInput"
+                  type="text"
+                  className="form-input"
+                  value={coverTagline}
+                  onChange={(e) => setCoverTagline(e.target.value)}
+                  placeholder="Enter Cover Tagline..."
+                  disabled={isSubmitting}
+                />
+              </div>
+
+              <div className="form-group">
+                <label htmlFor="coverUrlInput">Website Domain URL (e.g. www.sleekmagazine.com)</label>
+                <input
+                  id="coverUrlInput"
+                  type="text"
+                  className="form-input"
+                  value={coverUrl}
+                  onChange={(e) => setCoverUrl(e.target.value)}
+                  placeholder="Enter website domain..."
+                  disabled={isSubmitting}
+                />
+              </div>
+
+              <div className="form-group">
+                <label htmlFor="coverSocialInput">Instagram/Social Handle (e.g. @socialhandle)</label>
+                <input
+                  id="coverSocialInput"
+                  type="text"
+                  className="form-input"
+                  value={coverSocial}
+                  onChange={(e) => setCoverSocial(e.target.value)}
+                  placeholder="Enter social handle..."
+                  disabled={isSubmitting}
+                />
+              </div>
+
+              {feedback.message && (
+                <div className={`admin-feedback ${feedback.type}`}>{feedback.message}</div>
+              )}
+
+              <div className="admin-button-group">
+                <button
+                  type="submit"
+                  className="publish-btn"
+                  style={{ flex: 1 }}
+                  disabled={isSubmitting || isUploading}
+                >
+                  {isSubmitting ? 'SAVING...' : 'SAVE COVER SETTINGS'}
+                </button>
+              </div>
+            </form>
+          </div>
+
+          {/* Right Column: Cover Photo */}
+          <div>
+            <h2 className="subtitle-tag" style={{ marginBottom: '2rem' }}>
+              Cover Background Photo
+            </h2>
+            <div className="form-group">
+              <label>Upload Background Image (16:10 Aspect Ratio)</label>
+              <label
+                className="upload-zone"
+                style={{
+                  cursor: 'pointer',
+                }}
+              >
+                <input
+                  id="upload-cover-input"
+                  type="file"
+                  accept="image/*"
+                  onChange={handleImageUploadSelect}
+                  style={{ display: 'none' }}
+                  disabled={isUploading || isSubmitting}
+                />
+                <svg
+                  width="32"
+                  height="32"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="var(--color-bronze)"
+                  strokeWidth="1.5"
+                  style={{ marginBottom: '0.5rem' }}
+                >
+                  <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M17 8l-5-5-5 5M12 3v12" />
+                </svg>
+                <span className="upload-text">
+                  {isUploading ? 'Uploading to Cloudinary...' : coverImage ? 'Click to change photo' : 'Click to upload Cover photo'}
+                </span>
+              </label>
+
+              {coverImage && (
+                <div className="form-group" style={{ marginTop: '2rem' }}>
+                  <label style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <span>Photo Preview</span>
+                    <button
+                      type="button"
+                      onClick={() => document.getElementById('upload-cover-input').click()}
+                      style={{
+                        background: 'none',
+                        border: 'none',
+                        color: 'var(--color-bronze)',
+                        fontSize: '0.75rem',
+                        cursor: 'pointer',
+                        textDecoration: 'underline',
+                        padding: 0
+                      }}
+                    >
+                      Change Photo
+                    </button>
+                  </label>
+                  <div className="upload-preview" style={{ aspectRatio: '16/10' }}>
+                    <img src={coverImage} alt="Uploaded cover preview" />
+                  </div>
+                </div>
+              )}
+            </div>
           </div>
         </div>
       )}
@@ -841,7 +1136,7 @@ export default function Admin() {
               style={{
                 width: '100%',
                 maxWidth: '400px',
-                aspectRatio: '4/3',
+                aspectRatio: activeTab === 'cover' ? '16/10' : '4/3',
                 position: 'relative',
                 overflow: 'hidden',
                 border: '1px solid var(--color-bronze)',

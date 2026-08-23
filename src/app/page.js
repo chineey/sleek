@@ -8,6 +8,31 @@ export default function Home() {
   const [filteredArticles, setFilteredArticles] = useState([]);
   const [activeCategory, setActiveCategory] = useState('all');
   const [isHeroLoaded, setIsHeroLoaded] = useState(false);
+  const [cover, setCover] = useState({
+    title: 'SLEEK',
+    issue: 'ISH. 01',
+    label: 'MAGAZINE',
+    tagline: 'A New WAVE',
+    url: 'www.sleekmagazine.com',
+    social: '@sleekpeak',
+    image: 'https://images.unsplash.com/photo-1509631179647-0177331693ae?q=80&w=1200&auto=format&fit=crop'
+  });
+
+  // Fetch cover settings from API
+  useEffect(() => {
+    async function fetchCover() {
+      try {
+        const res = await fetch('/api/cover');
+        if (res.ok) {
+          const data = await res.json();
+          setCover(data);
+        }
+      } catch (err) {
+        console.error('Failed to load cover settings:', err);
+      }
+    }
+    fetchCover();
+  }, []);
 
   // Immersive Reader Modal State
   const [selectedArticle, setSelectedArticle] = useState(null);
@@ -135,7 +160,12 @@ export default function Home() {
     <>
       {/* Cover Hero Section */}
       <section className={`cover-hero ${isHeroLoaded ? 'loaded' : ''}`} id="cover-hero">
-        <div className="cover-background"></div>
+        <div 
+          className="cover-background" 
+          style={{ 
+            backgroundImage: `linear-gradient(to bottom, rgba(12, 12, 12, 0.2) 0%, rgba(12, 12, 12, 0.7) 100%), url('${cover.image}')` 
+          }}
+        ></div>
         <div className="cover-overlay"></div>
 
         {/* Decorative Bronze Frames */}
@@ -148,21 +178,21 @@ export default function Home() {
         {/* Cover Content */}
         <div className="cover-content">
           <div className="cover-top-bar">
-            <h1 className="cover-title">SLEEK</h1>
+            <h1 className="cover-title">{cover.title}</h1>
           </div>
 
           <div className="cover-middle-bar">
-            <span className="cover-issue">ISH. 01</span>
-            <h2 className="cover-magazine-label">MAGAZINE</h2>
+            <span className="cover-issue">{cover.issue}</span>
+            <h2 className="cover-magazine-label">{cover.label}</h2>
           </div>
 
           <div className="cover-bottom-bar">
-            <h3 className="cover-tagline">A New WAVE</h3>
+            <h3 className="cover-tagline">{cover.tagline}</h3>
             <div className="cover-footer-meta">
-              <a href="https://www.sleekmagazine.com" target="_blank" rel="noreferrer" className="cover-link cover-url">
-                www.sleekmagazine.com
+              <a href={`https://${cover.url}`} target="_blank" rel="noreferrer" className="cover-link cover-url">
+                {cover.url}
               </a>
-              <span className="cover-link cover-social">@sleekpeak</span>
+              <span className="cover-link cover-social">{cover.social}</span>
             </div>
           </div>
         </div>

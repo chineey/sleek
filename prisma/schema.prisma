@@ -25,3 +25,14 @@ model Article {
   order     Int      @default(0)
   createdAt DateTime @default(now())
 }
+
+model CoverSettings {
+  id      Int    @id @default(1)
+  title   String @default("SLEEK")
+  issue   String @default("ISH. 01")
+  label   String @default("MAGAZINE")
+  tagline String @default("A New WAVE")
+  url     String @default("www.sleekmagazine.com")
+  social  String @default("@sleekpeak")
+  image   String @default("https://images.unsplash.com/photo-1509631179647-0177331693ae?q=80&w=1200&auto=format&fit=crop")
+}
