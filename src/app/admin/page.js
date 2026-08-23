@@ -255,7 +255,7 @@ export default function Admin() {
     if (!img) return;
 
     // The viewport is responsive.
-    // The canvas output is 1200x900 (articles) or 2400x1500 (cover Settings).
+    // The canvas output is 1200x900 (articles) or 1600x1000 (cover Settings).
     // The CSS transform on the image is: translate(ox, oy) scale(zoom)
     // with transform-origin: center center.
     //
@@ -273,8 +273,8 @@ export default function Admin() {
     const displayH = nh * fitRatio;
 
     const canvas = document.createElement('canvas');
-    const canvasWidth = activeTab === 'cover' ? 2400 : 1200;
-    const canvasHeight = activeTab === 'cover' ? 1500 : 900;
+    const canvasWidth = activeTab === 'cover' ? 1600 : 1200;
+    const canvasHeight = activeTab === 'cover' ? 1000 : 900;
     canvas.width = canvasWidth;
     canvas.height = canvasHeight;
     const ctx = canvas.getContext('2d');
