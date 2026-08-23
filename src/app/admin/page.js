@@ -100,6 +100,7 @@ export default function Admin() {
         setFeedback({ message: data.error || 'Failed to save cover settings.', type: 'error' });
       }
     } catch (err) {
+      console.error('Cover settings save error:', err);
       setFeedback({ message: 'Network error saving cover settings.', type: 'error' });
     } finally {
       setIsSubmitting(false);
