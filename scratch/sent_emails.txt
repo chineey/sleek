@@ -1,0 +1,18 @@
+
+========================================
+[EMAIL LOG] Magic Link for chinemezenjoku@gmail.com
+URL: http://localhost:3000/api/magic-link/verify?token=d88267068570f678f4b11c5ef66dcda704b407c4f0202bf6237f774fea4d17da
+Generated at: 2026-08-30T09:02:52.075Z
+========================================
+
+========================================
+[EMAIL LOG] Magic Link for chinemezenjoku@gmail.com
+URL: http://localhost:3000/api/magic-link/verify?token=fc0f09b5b55dc62709251191265ac5cee17d02c749687f1a179f342cc26ad9cb
+Generated at: 2026-08-30T09:16:56.461Z
+========================================
+
+========================================
+[EMAIL LOG] Magic Link for chinemezenjoku@gmail.com
+URL: http://localhost:3000/api/magic-link/verify?token=65e6d386e0949076cd2cdfe4d5c9286d2bf858f0a3b8bbd320b81495a353572f
+Generated at: 2026-08-30T09:18:57.596Z
+========================================

@@ -36,3 +36,23 @@ model CoverSettings {
   social  String @default("@sleekpeak")
   image   String @default("https://images.unsplash.com/photo-1509631179647-0177331693ae?q=80&w=1200&auto=format&fit=crop")
 }
+
+model Subscriber {
+  id                 String   @id @default(uuid())
+  email              String   @unique
+  status             String   @default("inactive") // "active" | "inactive"
+  paystackCustomerId String?
+  paystackReference  String?
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+}
+
+model MagicLink {
+  id        String   @id @default(uuid())
+  email     String
+  token     String   @unique
+  expiresAt DateTime
+  used      Boolean  @default(false)
+  createdAt DateTime @default(now())
+}
+

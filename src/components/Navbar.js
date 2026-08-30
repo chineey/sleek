@@ -9,13 +9,35 @@ export default function Navbar() {
   const [isVisible, setIsVisible] = useState(false);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [activeSection, setActiveSection] = useState('editorial');
+  const [isSubscriber, setIsSubscriber] = useState(false);
 
   // Hide the global navigation bar on admin or login routes
   if (pathname.startsWith('/admin') || pathname.startsWith('/login')) {
     return null;
   }
 
+  const checkSubscriberStatus = async () => {
+    try {
+      const res = await fetch('/api/subscriber/status');
+      if (res.ok) {
+        const data = await res.json();
+        setIsSubscriber(data.isSubscriber);
+      }
+    } catch (err) {
+      console.error('Navbar subscriber status check failed:', err);
+    }
+  };
+
   useEffect(() => {
+    checkSubscriberStatus();
+
+    // Listen to changes in subscriber status
+    const handleSubscriberChange = () => {
+      checkSubscriberStatus();
+    };
+
+    window.addEventListener('subscriber-change', handleSubscriberChange);
+    
     const handleScroll = () => {
       const scrollPos = window.scrollY;
       const viewportHeight = window.innerHeight;
@@ -49,8 +71,26 @@ export default function Navbar() {
     };
 
     window.addEventListener('scroll', handleScroll);
-    return () => window.removeEventListener('scroll', handleScroll);
+    return () => {
+      window.removeEventListener('scroll', handleScroll);
+      window.removeEventListener('subscriber-change', handleSubscriberChange);
+    };
   }, []);
+
+  const handleLogout = async () => {
+    try {
+      const res = await fetch('/api/subscriber/logout', { method: 'POST' });
+      if (res.ok) {
+        setIsSubscriber(false);
+        // Dispatch event to sync other components
+        window.dispatchEvent(new Event('subscriber-change'));
+        // Refresh page to trigger paywalls immediately
+        window.location.reload();
+      }
+    } catch (err) {
+      console.error('Logout failed:', err);
+    }
+  };
 
   return (
     <nav className={`main-nav ${isVisible ? 'visible' : ''} ${isMenuOpen ? 'menu-open' : ''}`} id="main-nav">
@@ -89,9 +129,18 @@ export default function Navbar() {
           </li>
         </ul>
 
-        <Link href="#subscribe" className="nav-cta btn-hover-effect">
-          SUBSCRIBE
-        </Link>
+        {isSubscriber ? (
+          <div className="nav-subscriber-info" style={{ display: 'flex', alignItems: 'center' }}>
+            <span className="subscriber-badge">SUBSCRIBER</span>
+            <button onClick={handleLogout} className="nav-logout-btn btn-hover-effect">
+              LOGOUT
+            </button>
+          </div>
+        ) : (
+          <Link href="#subscribe" className="nav-cta btn-hover-effect">
+            SUBSCRIBE
+          </Link>
+        )}
         
         <button 
           className="mobile-nav-toggle" 

@@ -18,6 +18,45 @@ export default function Home() {
     image: 'https://images.unsplash.com/photo-1509631179647-0177331693ae?q=80&w=1200&auto=format&fit=crop'
   });
 
+  const [isSubscriber, setIsSubscriber] = useState(false);
+  const [toast, setToast] = useState({ message: '', type: '' });
+
+  // Magic Link Form State
+  const [showMagicLinkForm, setShowMagicLinkForm] = useState(false);
+  const [magicLinkEmail, setMagicLinkEmail] = useState('');
+  const [magicLinkFeedback, setMagicLinkFeedback] = useState({ message: '', type: '' });
+  const [isSubmittingMagicLink, setIsSubmittingMagicLink] = useState(false);
+
+  // Immersive Reader Modal State
+  const [selectedArticle, setSelectedArticle] = useState(null);
+  const [isReaderActive, setIsReaderActive] = useState(false);
+  const [readProgress, setReadProgress] = useState(0);
+  const readerModalRef = useRef(null);
+
+  // Newsletter/Subscribe Form State
+  const [email, setEmail] = useState('');
+  const [formFeedback, setFormFeedback] = useState({ message: '', type: '' });
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const showToast = (message, type = 'success') => {
+    setToast({ message, type });
+    setTimeout(() => {
+      setToast({ message: '', type: '' });
+    }, 6000);
+  };
+
+  const checkSubscriberStatus = async () => {
+    try {
+      const res = await fetch('/api/subscriber/status');
+      if (res.ok) {
+        const data = await res.json();
+        setIsSubscriber(data.isSubscriber);
+      }
+    } catch (err) {
+      console.error('Failed to get subscriber status:', err);
+    }
+  };
+
   // Fetch cover settings from API
   useEffect(() => {
     async function fetchCover() {
@@ -32,18 +71,51 @@ export default function Home() {
       }
     }
     fetchCover();
+    checkSubscriberStatus();
+
+    // Listen to changes in subscriber status
+    const handleSubscriberChange = () => {
+      checkSubscriberStatus();
+    };
+
+    window.addEventListener('subscriber-change', handleSubscriberChange);
+    return () => window.removeEventListener('subscriber-change', handleSubscriberChange);
   }, []);
 
-  // Immersive Reader Modal State
-  const [selectedArticle, setSelectedArticle] = useState(null);
-  const [isReaderActive, setIsReaderActive] = useState(false);
-  const [readProgress, setReadProgress] = useState(0);
-  const readerModalRef = useRef(null);
-
-  // Newsletter Form State
-  const [email, setEmail] = useState('');
-  const [formFeedback, setFormFeedback] = useState({ message: '', type: '' });
-  const [isSubmitting, setIsSubmitting] = useState(false);
+  // Check URL query parameters for alerts
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('subscribed') === 'true') {
+      showToast('Thank you! Your subscription is active. Welcome to SLEEK.', 'success');
+      window.history.replaceState({}, document.title, window.location.pathname);
+      window.dispatchEvent(new Event('subscriber-change'));
+    } else if (params.get('login') === 'success') {
+      showToast('Welcome back! You have successfully signed in.', 'success');
+      window.history.replaceState({}, document.title, window.location.pathname);
+      window.dispatchEvent(new Event('subscriber-change'));
+    } else if (params.get('login_error')) {
+      const err = params.get('login_error');
+      if (err === 'expired_or_invalid') {
+        showToast('This access link has expired or is invalid. Please request a new one.', 'error');
+      } else if (err === 'not_active_subscriber') {
+        showToast('No active subscription found for this email address.', 'error');
+      } else {
+        showToast('Sign in failed. Please try again.', 'error');
+      }
+      window.history.replaceState({}, document.title, window.location.pathname);
+    } else if (params.get('payment') === 'success') {
+      showToast('Payment successful! Thank you.', 'success');
+      window.history.replaceState({}, document.title, window.location.pathname);
+    } else if (params.get('error')) {
+      const err = params.get('error');
+      if (err === 'payment_failed') {
+        showToast('Subscription payment failed. Please try again.', 'error');
+      } else {
+        showToast('An error occurred during verification.', 'error');
+      }
+      window.history.replaceState({}, document.title, window.location.pathname);
+    }
+  }, []);
 
   // Fetch articles from Database API
   useEffect(() => {
@@ -124,7 +196,7 @@ export default function Home() {
     }
   };
 
-  // Subscribe Newsletter Handler
+  // Subscribe Newsletter Handler (now handles Paystack subscription)
   const handleSubscribe = async (e) => {
     e.preventDefault();
     if (!email || !email.includes('@')) {
@@ -135,17 +207,64 @@ export default function Home() {
     setIsSubmitting(true);
     setFormFeedback({ message: '', type: '' });
 
-    // Simulate database signup saving
-    setTimeout(() => {
-      setFormFeedback({ message: 'Thank you. You have been added to the digest.', type: 'success' });
-      setEmail('');
-      setIsSubmitting(false);
+    try {
+      const res = await fetch('/api/subscribe/initiate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email }),
+      });
 
-      // Clear success feedback
-      setTimeout(() => {
-        setFormFeedback({ message: '', type: '' });
-      }, 5000);
-    }, 1200);
+      const data = await res.json();
+
+      if (!res.ok) {
+        throw new Error(data.error || 'Failed to initiate checkout.');
+      }
+
+      if (data.authorization_url) {
+        showToast('Redirecting to checkout...', 'info');
+        window.location.href = data.authorization_url;
+      } else {
+        throw new Error('No checkout URL returned.');
+      }
+    } catch (err) {
+      setFormFeedback({ message: err.message, type: 'error' });
+      setIsSubmitting(false);
+    }
+  };
+
+  // Magic Link Request Handler
+  const handleRequestMagicLink = async (e) => {
+    e.preventDefault();
+    if (!magicLinkEmail || !magicLinkEmail.includes('@')) {
+      setMagicLinkFeedback({ message: 'Please enter a valid email address.', type: 'error' });
+      return;
+    }
+
+    setIsSubmittingMagicLink(true);
+    setMagicLinkFeedback({ message: '', type: '' });
+
+    try {
+      const res = await fetch('/api/magic-link/request', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: magicLinkEmail }),
+      });
+
+      const data = await res.json();
+      if (res.ok) {
+        setMagicLinkFeedback({
+          message: data.message || 'Access link sent! Check your inbox (or console/scratch).',
+          type: 'success'
+        });
+        setMagicLinkEmail('');
+      } else {
+        throw new Error(data.error || 'Failed to request magic link.');
+      }
+    } catch (err) {
+      setMagicLinkFeedback({ message: err.message, type: 'error' });
+    } finally {
+      setIsSubmittingMagicLink(false);
+    }
   };
 
   // Scroll to editorial content from cover hero
@@ -235,11 +354,24 @@ export default function Home() {
           <div className="articles-grid">
             {filteredArticles.map((article, idx) => {
               const isFeatured = false;
+              // Paywall logic: first 2 articles are free. Remaining articles are gated.
+              const isPaywalled = !isSubscriber && article.order >= 2;
+
               return (
                 <article
                   key={article.id}
-                  className={`article-card ${isFeatured ? 'featured' : ''}`}
-                  onClick={() => openReader(article)}
+                  className={`article-card ${isFeatured ? 'featured' : ''} ${isPaywalled ? 'paywalled' : ''}`}
+                  onClick={() => {
+                    if (isPaywalled) {
+                      const subSection = document.getElementById('subscribe');
+                      if (subSection) {
+                        subSection.scrollIntoView({ behavior: 'smooth' });
+                      }
+                      showToast('This story is premium. Subscribe to read.', 'info');
+                    } else {
+                      openReader(article);
+                    }
+                  }}
                   style={{ cursor: 'pointer' }}
                 >
                   <div className="card-img-wrapper">
@@ -248,12 +380,26 @@ export default function Home() {
                       style={{ backgroundImage: `url('${article.image}')` }}
                     ></div>
                     <span className="card-category">{article.category}</span>
+                    
+                    {isPaywalled && (
+                      <div className="paywall-overlay">
+                        <svg className="paywall-lock-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
+                          <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
+                          <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
+                        </svg>
+                        <h4 className="paywall-title">Premium Story</h4>
+                        <p className="paywall-desc">Subscribe to unlock access to this and other premium issues.</p>
+                        <button className="paywall-btn">Subscribe</button>
+                      </div>
+                    )}
                   </div>
                   <div className="card-info">
                     <span className="card-date">{article.date}</span>
                     <h3 className="card-title">{article.title}</h3>
                     <p className="card-excerpt">{getExcerpt(article.content)}</p>
-                    <span className="card-read-more">Read Story</span>
+                    <span className="card-read-more">
+                      {isPaywalled ? '🔒 Unlock' : 'Read Story'}
+                    </span>
                   </div>
                 </article>
               );
@@ -305,30 +451,88 @@ export default function Home() {
         <div className="subscribe-container">
           <div className="subscribe-box">
             <span className="subtitle-tag">JOIN THE CLUB</span>
-            <h2>Receive the Print &amp; Digital Editions</h2>
-            <p>
-              Subscribe to receive quarterly physical issues of SLEEK directly to your door, along with full access to our digital premium archives and weekly digests.
-            </p>
-
-            <form className="subscribe-form" onSubmit={handleSubscribe}>
-              <div className="input-group">
-                <input
-                  type="email"
-                  placeholder="Your email address"
-                  required
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                />
-                <button type="submit" className="sub-btn" disabled={isSubmitting}>
-                  {isSubmitting ? '...' : 'JOIN'}
-                </button>
-              </div>
-              {formFeedback.message && (
-                <p className={`form-feedback ${formFeedback.type}`}>
-                  {formFeedback.message}
+            {isSubscriber ? (
+              <>
+                <h2>You have Full Access</h2>
+                <p style={{ marginBottom: '1.5rem' }}>
+                  Thank you for supporting SLEEK Magazine. Your digital and print subscription is active. Enjoy browsing our complete archive of stories.
                 </p>
-              )}
-            </form>
+              </>
+            ) : (
+              <>
+                <h2>Receive the Print &amp; Digital Editions</h2>
+                <p>
+                  Subscribe for ₦5,000 to receive quarterly physical issues of SLEEK directly to your door, along with full access to our digital premium archives and weekly digests.
+                </p>
+
+                <form className="subscribe-form" onSubmit={handleSubscribe}>
+                  <div className="input-group">
+                    <input
+                      type="email"
+                      placeholder="Your email address"
+                      required
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                    />
+                    <button type="submit" className="sub-btn" disabled={isSubmitting}>
+                      {isSubmitting ? '...' : 'JOIN'}
+                    </button>
+                  </div>
+                  {formFeedback.message && (
+                    <p className={`form-feedback ${formFeedback.type}`}>
+                      {formFeedback.message}
+                    </p>
+                  )}
+                </form>
+
+                {/* Magic Link Section */}
+                <div className="magic-link-section">
+                  <button 
+                    type="button" 
+                    className="magic-link-toggle-btn"
+                    onClick={() => setShowMagicLinkForm(!showMagicLinkForm)}
+                  >
+                    {showMagicLinkForm ? "Hide sign in form" : "Already subscribed? Sign in on a new device"}
+                  </button>
+                  
+                  {showMagicLinkForm && (
+                    <div className="magic-link-box">
+                      <p>Enter your subscribed email to receive an instant access link. No password required.</p>
+                      <form onSubmit={handleRequestMagicLink} style={{ display: 'flex', gap: '0.5rem', marginTop: '0.5rem' }}>
+                        <input
+                          type="email"
+                          placeholder="Your subscribed email"
+                          required
+                          value={magicLinkEmail}
+                          onChange={(e) => setMagicLinkEmail(e.target.value)}
+                          style={{
+                            flex: 1,
+                            background: 'transparent',
+                            border: '1px solid var(--color-border)',
+                            color: 'var(--color-white)',
+                            padding: '0.6rem 1rem',
+                            fontSize: '0.85rem'
+                          }}
+                        />
+                        <button 
+                          type="submit" 
+                          className="sub-btn" 
+                          disabled={isSubmittingMagicLink}
+                          style={{ padding: '0 1.25rem', width: 'auto' }}
+                        >
+                          {isSubmittingMagicLink ? '...' : 'SEND LINK'}
+                        </button>
+                      </form>
+                      {magicLinkFeedback.message && (
+                        <p className={`form-feedback ${magicLinkFeedback.type}`} style={{ marginTop: '0.5rem', fontSize: '0.8rem' }}>
+                          {magicLinkFeedback.message}
+                        </p>
+                      )}
+                    </div>
+                  )}
+                </div>
+              </>
+            )}
           </div>
         </div>
       </section>
@@ -385,27 +589,74 @@ export default function Home() {
           </svg>
         </button>
         <div className="reader-content-wrapper">
-          {selectedArticle && (
-            <article className="reader-article">
-              <div className="reader-meta">
-                <span className="reader-category">{selectedArticle.category}</span>
-                <h1 className="reader-title">{selectedArticle.title}</h1>
-                <div className="reader-author-date">
-                  {selectedArticle.author} &bull; {selectedArticle.date}
+          {selectedArticle && (() => {
+            const isReaderPaywalled = !isSubscriber && selectedArticle.order >= 2;
+
+            return (
+              <article className="reader-article">
+                <div className="reader-meta">
+                  <span className="reader-category">{selectedArticle.category}</span>
+                  <h1 className="reader-title">{selectedArticle.title}</h1>
+                  <div className="reader-author-date">
+                    {selectedArticle.author} &bull; {selectedArticle.date}
+                  </div>
                 </div>
-              </div>
-              <div
-                className="reader-cover-img"
-                style={{ backgroundImage: `url('${selectedArticle.image}')` }}
-              ></div>
-              <div
-                className="reader-body"
-                dangerouslySetInnerHTML={{ __html: selectedArticle.content }}
-              ></div>
-            </article>
-          )}
+                <div
+                  className="reader-cover-img"
+                  style={{ backgroundImage: `url('${selectedArticle.image}')` }}
+                ></div>
+
+                {isReaderPaywalled ? (
+                  <div className="reader-paywall-container">
+                    <div
+                      className="reader-body"
+                      style={{ filter: 'blur(5px)', opacity: 0.35, pointerEvents: 'none', userSelect: 'none' }}
+                      dangerouslySetInnerHTML={{ 
+                        __html: selectedArticle.content.substring(0, Math.min(250, selectedArticle.content.length)) + '...'
+                      }}
+                    ></div>
+                    <div className="reader-paywall-overlay">
+                      <div className="reader-paywall-box">
+                        <svg className="paywall-lock-icon" style={{ width: '40px', height: '40px' }} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
+                          <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
+                          <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
+                        </svg>
+                        <h3>Subscribe to keep reading</h3>
+                        <p>This premium story requires an active digital subscription. Unlock all issues and our premium digital archive today.</p>
+                        <button 
+                          className="paywall-btn" 
+                          onClick={() => {
+                            closeReader();
+                            const subSection = document.getElementById('subscribe');
+                            if (subSection) {
+                              subSection.scrollIntoView({ behavior: 'smooth' });
+                            }
+                          }}
+                        >
+                          Unlock Now — ₦5,000
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                ) : (
+                  <div
+                    className="reader-body"
+                    dangerouslySetInnerHTML={{ __html: selectedArticle.content }}
+                  ></div>
+                )}
+              </article>
+            );
+          })()}
         </div>
       </div>
+
+      {/* Floating Notifications */}
+      {toast.message && (
+        <div className={`notification-banner ${toast.type}`}>
+          <span>{toast.message}</span>
+          <button className="notification-close" onClick={() => setToast({ message: '', type: '' })}>×</button>
+        </div>
+      )}
     </>
   );
 }
