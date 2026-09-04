@@ -13,6 +13,8 @@ export default function Comments({ articleId }) {
   const [commentText, setCommentText] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [pendingComment, setPendingComment] = useState(null);
+  const [replyingTo, setReplyingTo] = useState(null);
+  const [replyText, setReplyText] = useState('');
 
   // Load comments and current user's display name
   useEffect(() => {
@@ -53,10 +55,19 @@ export default function Comments({ articleId }) {
 
   const handleCommentClick = () => {
     if (!displayName) {
-      setPendingComment({ text: commentText });
+      setPendingComment({ text: commentText, parentCommentId: null });
       setShowModal(true);
     } else {
       submitComment();
+    }
+  };
+
+  const handleReplyClick = (parentCommentId, parentDisplayName) => {
+    if (!displayName) {
+      setPendingComment({ text: replyText, parentCommentId });
+      setShowModal(true);
+    } else {
+      submitComment(replyText, parentCommentId);
     }
   };
 
@@ -64,12 +75,12 @@ export default function Comments({ articleId }) {
     setDisplayName(name);
     // Submit the pending comment if there was one
     if (pendingComment?.text) {
-      await submitComment(pendingComment.text);
+      await submitComment(pendingComment.text, pendingComment.parentCommentId);
       setPendingComment(null);
     }
   };
 
-  const submitComment = async (text = commentText) => {
+  const submitComment = async (text = commentText, parentCommentId = null) => {
     if (!text.trim()) return;
 
     setSubmitting(true);
@@ -77,7 +88,11 @@ export default function Comments({ articleId }) {
       const res = await fetch(`/api/comments/${articleId}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ articleId: parseInt(articleId), content: text }),
+        body: JSON.stringify({ 
+          articleId: parseInt(articleId), 
+          content: text,
+          parentCommentId: parentCommentId || null,
+        }),
       });
 
       if (!res.ok) {
@@ -88,8 +103,25 @@ export default function Comments({ articleId }) {
       }
 
       const newComment = await res.json();
-      setComments([newComment, ...comments]);
-      setCommentText('');
+
+      // If replying to a comment, add to that comment's replies
+      if (parentCommentId) {
+        setComments(comments.map(comment => {
+          if (comment.id === parentCommentId) {
+            return {
+              ...comment,
+              replies: [...(comment.replies || []), newComment],
+            };
+          }
+          return comment;
+        }));
+        setReplyText('');
+        setReplyingTo(null);
+      } else {
+        // Otherwise add as top-level comment
+        setComments([newComment, ...comments]);
+        setCommentText('');
+      }
     } catch (error) {
       console.error('Error posting comment:', error);
       alert('Failed to post comment');
@@ -118,7 +150,7 @@ export default function Comments({ articleId }) {
 
   return (
     <div className={styles.container}>
-      <h3 className={styles.title}>Comments ({comments.length})</h3>
+      <h3 className={styles.title}>Comments ({comments.length}){replyingTo && ' - Replying'}</h3>
 
       {/* Comment Form */}
       <div className={styles.formSection}>
@@ -161,14 +193,71 @@ export default function Comments({ articleId }) {
           <p className={styles.noComments}>No comments yet. Be the first to comment!</p>
         ) : (
           comments.map((comment) => (
-            <div key={comment.id} className={styles.comment}>
-              <div className={styles.commentHeader}>
-                <span className={styles.displayName}>{comment.displayName}</span>
-                <span className={styles.timestamp}>
-                  {new Date(comment.createdAt).toLocaleDateString()}
-                </span>
+            <div key={comment.id} className={styles.commentThread}>
+              {/* Parent Comment */}
+              <div className={styles.comment}>
+                <div className={styles.commentHeader}>
+                  <span className={styles.displayName}>{comment.displayName}</span>
+                  <span className={styles.timestamp}>
+                    {new Date(comment.createdAt).toLocaleDateString()}
+                  </span>
+                </div>
+                <p className={styles.commentContent}>{comment.content}</p>
+                <button
+                  className={styles.replyBtn}
+                  onClick={() => setReplyingTo(replyingTo === comment.id ? null : comment.id)}
+                >
+                  Reply
+                </button>
               </div>
-              <p className={styles.commentContent}>{comment.content}</p>
+
+              {/* Reply Form */}
+              {replyingTo === comment.id && (
+                <div className={styles.replyForm}>
+                  <div className={styles.replyLabel}>Replying to {comment.displayName}</div>
+                  <textarea
+                    value={replyText}
+                    onChange={(e) => setReplyText(e.target.value)}
+                    placeholder="Write a reply..."
+                    className={styles.replyTextarea}
+                    disabled={submitting}
+                    rows="2"
+                  />
+                  <div className={styles.replyActions}>
+                    <button
+                      onClick={() => handleReplyClick(comment.id)}
+                      disabled={!replyText.trim() || submitting}
+                      className={styles.submitBtn}
+                    >
+                      {submitting ? 'Posting...' : 'Send Reply'}
+                    </button>
+                    <button
+                      onClick={() => setReplyingTo(null)}
+                      disabled={submitting}
+                      className={styles.cancelBtn}
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {/* Replies */}
+              {comment.replies && comment.replies.length > 0 && (
+                <div className={styles.repliesContainer}>
+                  {comment.replies.map((reply) => (
+                    <div key={reply.id} className={styles.reply}>
+                      <div className={styles.replyHeader}>
+                        <span className={styles.displayName}>{reply.displayName}</span>
+                        <span className={styles.timestamp}>
+                          {new Date(reply.createdAt).toLocaleDateString()}
+                        </span>
+                      </div>
+                      <p className={styles.replyContent}>{reply.content}</p>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
           ))
         )}

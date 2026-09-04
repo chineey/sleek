@@ -24,7 +24,7 @@ async function getSubscriberEmail(req) {
   return null;
 }
 
-// GET comments for an article
+// GET comments for an article with replies
 export async function GET(req, { params }) {
   try {
     const { articleId } = params;
@@ -33,8 +33,9 @@ export async function GET(req, { params }) {
       return NextResponse.json({ error: 'Invalid article ID' }, { status: 400 });
     }
 
-    const comments = await prisma.comment.findMany({
-      where: { articleId: parseInt(articleId) },
+    // Fetch top-level comments (without parent)
+    const topLevelComments = await prisma.comment.findMany({
+      where: { articleId: parseInt(articleId), parentCommentId: null },
       select: {
         id: true,
         displayName: true,
@@ -44,7 +45,24 @@ export async function GET(req, { params }) {
       orderBy: { createdAt: 'desc' },
     });
 
-    return NextResponse.json({ comments });
+    // For each top-level comment, fetch its replies
+    const commentsWithReplies = await Promise.all(
+      topLevelComments.map(async (comment) => {
+        const replies = await prisma.comment.findMany({
+          where: { parentCommentId: comment.id },
+          select: {
+            id: true,
+            displayName: true,
+            content: true,
+            createdAt: true,
+          },
+          orderBy: { createdAt: 'asc' },
+        });
+        return { ...comment, replies };
+      })
+    );
+
+    return NextResponse.json({ comments: commentsWithReplies });
   } catch (error) {
     console.error('Error fetching comments:', error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
@@ -59,7 +77,7 @@ export async function POST(req, { params }) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const { articleId, content } = await req.json();
+    const { articleId, content, parentCommentId } = await req.json();
 
     if (!articleId || isNaN(parseInt(articleId))) {
       return NextResponse.json({ error: 'Invalid article ID' }, { status: 400 });
@@ -91,6 +109,16 @@ export async function POST(req, { params }) {
       return NextResponse.json({ error: 'Display name not set' }, { status: 400 });
     }
 
+    // Validate parent comment exists if replying
+    if (parentCommentId) {
+      const parentComment = await prisma.comment.findUnique({
+        where: { id: parentCommentId },
+      });
+      if (!parentComment) {
+        return NextResponse.json({ error: 'Parent comment not found' }, { status: 404 });
+      }
+    }
+
     // Create comment
     const comment = await prisma.comment.create({
       data: {
@@ -98,6 +126,7 @@ export async function POST(req, { params }) {
         subscriberId: subscriber.id,
         displayName: displayNameRecord.displayName,
         content: content.trim(),
+        parentCommentId: parentCommentId || null,
       },
       select: {
         id: true,

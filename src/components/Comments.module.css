@@ -165,6 +165,141 @@
   word-break: break-word;
 }
 
+.replyBtn {
+  margin-top: 12px;
+  padding: 6px 12px;
+  background: transparent;
+  color: #ba9c87;
+  border: 1px solid #ba9c87;
+  border-radius: 4px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.replyBtn:hover {
+  background: #ba9c87;
+  color: white;
+}
+
+.commentThread {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-bottom: 8px;
+}
+
+.repliesContainer {
+  margin-left: 24px;
+  padding-left: 12px;
+  border-left: 2px solid #eee;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.reply {
+  padding: 12px;
+  background: #fafaf8;
+  border: 1px solid #eee;
+  border-radius: 6px;
+}
+
+.reply:hover {
+  border-color: #ba9c87;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.03);
+}
+
+.replyHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 6px;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.replyContent {
+  margin: 0;
+  color: #333;
+  font-size: 13px;
+  line-height: 1.5;
+  word-break: break-word;
+}
+
+.replyForm {
+  padding: 12px;
+  background: #fafaf8;
+  border: 1px solid #e0e0e0;
+  border-radius: 6px;
+  margin-left: 24px;
+}
+
+.replyLabel {
+  font-size: 12px;
+  color: #ba9c87;
+  font-weight: 600;
+  margin-bottom: 8px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.replyTextarea {
+  width: 100%;
+  padding: 8px 12px;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  font-size: 13px;
+  font-family: inherit;
+  resize: vertical;
+  transition: all 0.2s;
+  color: #333;
+  margin-bottom: 8px;
+}
+
+.replyTextarea:focus {
+  outline: none;
+  border-color: #ba9c87;
+  background: white;
+}
+
+.replyTextarea:disabled {
+  background: #f0f0f0;
+  color: #999;
+  cursor: not-allowed;
+}
+
+.replyActions {
+  display: flex;
+  gap: 8px;
+}
+
+.cancelBtn {
+  padding: 6px 12px;
+  background: #e0e0e0;
+  color: #666;
+  border: none;
+  border-radius: 4px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.cancelBtn:hover:not(:disabled) {
+  background: #d0d0d0;
+}
+
+.cancelBtn:disabled {
+  color: #999;
+  cursor: not-allowed;
+}
+
 /* Mobile */
 @media (max-width: 640px) {
   .container {

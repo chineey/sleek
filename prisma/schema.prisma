@@ -67,14 +67,16 @@ model DisplayName {
 }
 
 model Comment {
-  id        String   @id @default(uuid())
-  articleId Int
-  subscriberId String
-  displayName String   // Display name at time of comment
-  content   String   @db.Text
-  createdAt DateTime @default(now())
+  id               String   @id @default(uuid())
+  articleId        Int
+  subscriberId     String
+  displayName      String   // Display name at time of comment
+  content          String   @db.Text
+  parentCommentId  String?  // For replies/threads
+  createdAt        DateTime @default(now())
 
   @@index([articleId])
   @@index([subscriberId])
+  @@index([parentCommentId])
 }
 
