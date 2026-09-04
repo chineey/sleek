@@ -6,7 +6,7 @@ import DisplayNameModal from './DisplayNameModal';
 import styles from './Comments.module.css';
 
 export default function Comments({ articleId }) {
-  const { data: session } = useSession();
+  const { data: session, status } = useSession();
   const [comments, setComments] = useState([]);
   const [displayName, setDisplayName] = useState(null);
   const [loading, setLoading] = useState(false);
@@ -95,7 +95,16 @@ export default function Comments({ articleId }) {
     }
   };
 
-  if (!session?.user?.email) {
+  if (status === 'loading') {
+    return (
+      <div className={styles.container}>
+        <h3 className={styles.title}>Comments</h3>
+        <p className={styles.loadingText}>Loading...</p>
+      </div>
+    );
+  }
+
+  if (status === 'unauthenticated' || !session?.user?.email) {
     return (
       <div className={styles.container}>
         <h3 className={styles.title}>Comments</h3>
