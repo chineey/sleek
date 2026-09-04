@@ -55,6 +55,8 @@ export default function Comments({ articleId }) {
     if (!displayName) {
       setPendingComment({ text: commentText });
       setShowModal(true);
+    } else {
+      submitComment();
     }
   };
 
@@ -131,7 +133,7 @@ export default function Comments({ articleId }) {
           />
           <div className={styles.formActions}>
             <button
-              onClick={() => submitComment()}
+              onClick={() => handleCommentClick()}
               disabled={!commentText.trim() || submitting || loading}
               className={styles.submitBtn}
             >
