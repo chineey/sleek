@@ -1,15 +1,14 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useSession } from 'next-auth/react';
 import DisplayNameModal from './DisplayNameModal';
 import styles from './Comments.module.css';
 
 export default function Comments({ articleId }) {
-  const { data: session, status } = useSession();
   const [comments, setComments] = useState([]);
   const [displayName, setDisplayName] = useState(null);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [isSubscriber, setIsSubscriber] = useState(false);
   const [showModal, setShowModal] = useState(false);
   const [commentText, setCommentText] = useState('');
   const [submitting, setSubmitting] = useState(false);
@@ -27,19 +26,20 @@ export default function Comments({ articleId }) {
           setComments(data.comments || []);
         }
 
-        // Fetch display name if logged in
-        if (session?.user?.email) {
-          console.log('Fetching display name for:', session.user.email);
-          const displayNameRes = await fetch('/api/display-name');
-          if (displayNameRes.ok) {
-            const data = await displayNameRes.json();
-            console.log('Display name:', data.displayName);
-            setDisplayName(data.displayName || null);
-          } else {
-            console.log('Display name fetch failed:', displayNameRes.status);
+        // Check subscriber status
+        const statusRes = await fetch('/api/subscriber/status');
+        if (statusRes.ok) {
+          const data = await statusRes.json();
+          setIsSubscriber(data.isSubscriber);
+
+          // Fetch display name if subscriber
+          if (data.isSubscriber) {
+            const displayNameRes = await fetch('/api/display-name');
+            if (displayNameRes.ok) {
+              const displayData = await displayNameRes.json();
+              setDisplayName(displayData.displayName || null);
+            }
           }
-        } else {
-          console.log('No session email available');
         }
       } catch (error) {
         console.error('Error fetching data:', error);
@@ -48,17 +48,10 @@ export default function Comments({ articleId }) {
       }
     };
 
-    if (status === 'authenticated') {
-      fetchData();
-    }
-  }, [articleId, session, status]);
+    fetchData();
+  }, [articleId]);
 
   const handleCommentClick = () => {
-    if (!session?.user?.email) {
-      alert('Please log in to comment');
-      return;
-    }
-
     if (!displayName) {
       setPendingComment({ text: commentText });
       setShowModal(true);
@@ -103,7 +96,7 @@ export default function Comments({ articleId }) {
     }
   };
 
-  if (status === 'loading') {
+  if (loading) {
     return (
       <div className={styles.container}>
         <h3 className={styles.title}>Comments</h3>
@@ -112,7 +105,7 @@ export default function Comments({ articleId }) {
     );
   }
 
-  if (status === 'unauthenticated' || !session?.user?.email) {
+  if (!isSubscriber) {
     return (
       <div className={styles.container}>
         <h3 className={styles.title}>Comments</h3>

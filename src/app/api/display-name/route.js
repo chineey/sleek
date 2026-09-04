@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth/next';
 import { authOptions } from '../auth/[...nextauth]/route';
+import { verifySubscriberToken } from '../../../lib/subscriberToken';
 import prisma from '../../../lib/prisma';
 
 const RESERVED_WORDS = ['admin', 'moderator', 'support', 'sleek'];
@@ -29,16 +30,36 @@ function validateDisplayName(name) {
   return { valid: true };
 }
 
+// Get subscriber email from either NextAuth session or subscriber token
+async function getSubscriberEmail(req) {
+  // Try NextAuth session first
+  const session = await getServerSession(authOptions);
+  if (session?.user?.email) {
+    return session.user.email;
+  }
+
+  // Try subscriber token cookie
+  const token = req.cookies.get('subscriber_token')?.value;
+  if (token) {
+    const payload = verifySubscriberToken(token);
+    if (payload?.email) {
+      return payload.email;
+    }
+  }
+
+  return null;
+}
+
 // GET current user's display name
 export async function GET(req) {
   try {
-    const session = await getServerSession(authOptions);
-    if (!session || !session.user?.email) {
+    const email = await getSubscriberEmail(req);
+    if (!email) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
     const subscriber = await prisma.subscriber.findUnique({
-      where: { email: session.user.email },
+      where: { email },
     });
 
     if (!subscriber) {
@@ -63,8 +84,8 @@ export async function GET(req) {
 // POST set/update display name
 export async function POST(req) {
   try {
-    const session = await getServerSession(authOptions);
-    if (!session || !session.user?.email) {
+    const email = await getSubscriberEmail(req);
+    if (!email) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
@@ -82,7 +103,7 @@ export async function POST(req) {
 
     // Get subscriber
     const subscriber = await prisma.subscriber.findUnique({
-      where: { email: session.user.email },
+      where: { email },
     });
 
     if (!subscriber) {
