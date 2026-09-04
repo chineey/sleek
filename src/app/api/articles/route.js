@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth/next';
 import { authOptions } from '../auth/[...nextauth]/route';
 import prisma from '../../../lib/prisma';
+import { sendNewArticleNotificationEmail } from '../../../lib/email';
 
 // GET all articles sorted by order ascending
 export async function GET() {
@@ -60,6 +61,20 @@ export async function POST(req) {
         order: nextOrder,
       },
     });
+
+    try {
+      const activeSubscribers = await prisma.subscriber.findMany({
+        where: { status: 'active' },
+        select: { email: true },
+      });
+
+      const subscriberEmails = activeSubscribers.map((subscriber) => subscriber.email);
+      if (subscriberEmails.length > 0) {
+        await sendNewArticleNotificationEmail(newArticle, subscriberEmails);
+      }
+    } catch (notificationError) {
+      console.error('Error sending new article notifications to subscribers:', notificationError);
+    }
 
     return NextResponse.json(newArticle, { status: 201 });
   } catch (error) {
