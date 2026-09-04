@@ -29,11 +29,17 @@ export default function Comments({ articleId }) {
 
         // Fetch display name if logged in
         if (session?.user?.email) {
+          console.log('Fetching display name for:', session.user.email);
           const displayNameRes = await fetch('/api/display-name');
           if (displayNameRes.ok) {
             const data = await displayNameRes.json();
+            console.log('Display name:', data.displayName);
             setDisplayName(data.displayName || null);
+          } else {
+            console.log('Display name fetch failed:', displayNameRes.status);
           }
+        } else {
+          console.log('No session email available');
         }
       } catch (error) {
         console.error('Error fetching data:', error);
@@ -42,8 +48,10 @@ export default function Comments({ articleId }) {
       }
     };
 
-    fetchData();
-  }, [articleId, session]);
+    if (status === 'authenticated') {
+      fetchData();
+    }
+  }, [articleId, session, status]);
 
   const handleCommentClick = () => {
     if (!session?.user?.email) {
