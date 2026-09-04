@@ -143,33 +143,10 @@ export async function sendNewArticleNotificationEmail(article, recipientEmails =
     .trim();
   const teaser = previewText ? previewText.slice(0, 180) : 'A new story has just been published on SLEEK.';
 
-  const logMessage = `
-========================================
-[EMAIL LOG] New article notification
-To: ${emails.join(', ')}
-Title: ${articleTitle}
-Link: ${articleUrl}
-Sent at: ${new Date().toISOString()}
-========================================
-`;
+  const brevoApiKey = process.env.BREVO_API_KEY;
 
-  try {
-    const logDir = path.join(process.cwd(), 'scratch');
-    if (!fs.existsSync(logDir)) {
-      fs.mkdirSync(logDir, { recursive: true });
-    }
-    fs.appendFileSync(path.join(logDir, 'sent_emails.txt'), logMessage);
-  } catch (err) {
-    console.error('Failed to log article notification email to file:', err);
-  }
-
-  const host = process.env.BREVO_SMTP_HOST || 'smtp-relay.brevo.com';
-  const port = parseInt(process.env.BREVO_SMTP_PORT || '587', 10);
-  const user = process.env.BREVO_SMTP_USER;
-  const pass = process.env.BREVO_SMTP_PASS;
-
-  if (!user || !pass || pass.includes('your-brevo') || user.includes('your-brevo')) {
-    console.log('[EMAIL] Brevo credentials not set in .env. Logged new article notification to scratch.');
+  if (!brevoApiKey || brevoApiKey.includes('your-brevo')) {
+    console.log('[EMAIL] Brevo API key not set in .env. Skipping email notification.');
     return true;
   }
 
@@ -194,7 +171,7 @@ Sent at: ${new Date().toISOString()}
     const brevoResponse = await fetch('https://api.brevo.com/v3/smtp/email', {
       method: 'POST',
       headers: {
-        'api-key': pass,
+        'api-key': brevoApiKey,
         'Content-Type': 'application/json',
         'Accept': 'application/json',
       },
