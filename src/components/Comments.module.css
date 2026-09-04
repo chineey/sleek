@@ -1,0 +1,192 @@
+.container {
+  max-width: 100%;
+  margin: 40px 0;
+  padding: 0 20px;
+}
+
+.title {
+  margin: 0 0 24px;
+  font-size: 20px;
+  font-weight: 600;
+  color: #111;
+}
+
+.loginPrompt {
+  font-size: 14px;
+  color: #666;
+  text-align: center;
+  padding: 24px;
+  background: #f9f9f7;
+  border-radius: 8px;
+  margin: 0;
+}
+
+.formSection {
+  margin-bottom: 32px;
+  padding: 20px;
+  background: #fafaf8;
+  border-radius: 8px;
+}
+
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.textarea {
+  width: 100%;
+  padding: 12px 16px;
+  border: 2px solid #eee;
+  border-radius: 8px;
+  font-size: 14px;
+  font-family: inherit;
+  resize: vertical;
+  transition: all 0.2s;
+  color: #333;
+}
+
+.textarea:focus {
+  outline: none;
+  border-color: #ba9c87;
+  background: white;
+}
+
+.textarea:disabled {
+  background: #f0f0f0;
+  color: #999;
+  cursor: not-allowed;
+}
+
+.textarea::placeholder {
+  color: #999;
+}
+
+.formActions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.submitBtn {
+  padding: 10px 24px;
+  background: #ba9c87;
+  color: white;
+  border: none;
+  border-radius: 6px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  white-space: nowrap;
+}
+
+.submitBtn:hover:not(:disabled) {
+  background: #a08570;
+  transform: translateY(-2px);
+}
+
+.submitBtn:disabled {
+  background: #ddd;
+  color: #999;
+  cursor: not-allowed;
+}
+
+.hint,
+.displayNameInfo {
+  margin: 0;
+  font-size: 12px;
+  color: #666;
+  text-align: right;
+  flex: 1;
+}
+
+.displayNameInfo strong {
+  color: #ba9c87;
+  font-weight: 600;
+}
+
+.commentsList {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.loadingText,
+.noComments {
+  text-align: center;
+  color: #999;
+  font-size: 14px;
+  padding: 24px;
+  margin: 0;
+}
+
+.comment {
+  padding: 16px;
+  background: white;
+  border: 1px solid #eee;
+  border-radius: 8px;
+  transition: all 0.2s;
+}
+
+.comment:hover {
+  border-color: #ba9c87;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+}
+
+.commentHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.displayName {
+  font-weight: 600;
+  color: #ba9c87;
+  font-size: 14px;
+}
+
+.timestamp {
+  font-size: 12px;
+  color: #999;
+}
+
+.commentContent {
+  margin: 0;
+  color: #333;
+  font-size: 14px;
+  line-height: 1.5;
+  word-break: break-word;
+}
+
+/* Mobile */
+@media (max-width: 640px) {
+  .container {
+    padding: 0 12px;
+  }
+
+  .formActions {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .submitBtn {
+    width: 100%;
+  }
+
+  .hint,
+  .displayNameInfo {
+    text-align: left;
+  }
+
+  .commentHeader {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+}

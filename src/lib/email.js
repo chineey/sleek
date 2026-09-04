@@ -48,7 +48,7 @@ Generated at: ${new Date().toISOString()}
     <div style="font-family: sans-serif; max-width: 500px; margin: 0 auto; padding: 20px; border: 1px solid #eee; border-radius: 8px;">
       <h2 style="color: #ba9c87; text-align: center;">S L E E K</h2>
       <p>Hello,</p>
-      <p>You requested a magic link to access SLEEK Magazine. Click the button below to sign in:</p>
+      <p>You requested to access SLEEK Magazine. Click the button below to sign in:</p>
       <div style="text-align: center; margin: 30px 0;">
         <a href="${magicLink}" style="background-color: #ba9c87; color: white; padding: 12px 24px; text-decoration: none; border-radius: 4px; font-weight: 500; display: inline-block;">Access Magazine</a>
       </div>

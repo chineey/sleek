@@ -56,3 +56,25 @@ model MagicLink {
   createdAt DateTime @default(now())
 }
 
+model DisplayName {
+  id           String   @id @default(uuid())
+  subscriberId String   @unique
+  displayName  String   @unique // Stored in lowercase for case-insensitive comparison
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@index([subscriberId])
+}
+
+model Comment {
+  id        String   @id @default(uuid())
+  articleId Int
+  subscriberId String
+  displayName String   // Display name at time of comment
+  content   String   @db.Text
+  createdAt DateTime @default(now())
+
+  @@index([articleId])
+  @@index([subscriberId])
+}
+

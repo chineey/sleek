@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react';
 import Image from 'next/image';
+import Comments from '../components/Comments';
 
 export default function Home() {
   const [articles, setArticles] = useState([]);
@@ -643,6 +644,11 @@ export default function Home() {
                     className="reader-body"
                     dangerouslySetInnerHTML={{ __html: selectedArticle.content }}
                   ></div>
+                )}
+                
+                {/* Comments Section - Only show for non-paywalled articles */}
+                {(!(!isSubscriber && selectedArticle.order >= 2)) && (
+                  <Comments articleId={selectedArticle.id} />
                 )}
               </article>
             );
