@@ -16,27 +16,35 @@ export const authOptions = {
           throw new Error('Please enter both username and password.');
         }
 
-        const user = await prisma.user.findUnique({
-          where: { username: credentials.username }
-        });
+        try {
+          const user = await prisma.user.findUnique({
+            where: { username: credentials.username }
+          });
 
-        if (!user) {
+          if (!user) {
+            console.warn('[AUTH] Credentials login failed - user not found:', credentials.username);
+            throw new Error('Invalid username or password.');
+          }
+
+          const isPasswordValid = await bcrypt.compare(
+            credentials.password,
+            user.password
+          );
+
+          if (!isPasswordValid) {
+            console.warn('[AUTH] Credentials login failed - invalid password for user:', credentials.username);
+            throw new Error('Invalid username or password.');
+          }
+
+          return {
+            id: user.id,
+            name: user.username,
+          };
+        } catch (err) {
+          console.error('[AUTH] Error in authorize:', err && err.message ? err.message : err);
+          // Surface a generic error to the client while logging details server-side
           throw new Error('Invalid username or password.');
         }
-
-        const isPasswordValid = await bcrypt.compare(
-          credentials.password,
-          user.password
-        );
-
-        if (!isPasswordValid) {
-          throw new Error('Invalid username or password.');
-        }
-
-        return {
-          id: user.id,
-          name: user.username,
-        };
       }
     })
   ],
