@@ -432,7 +432,7 @@ export default function Home() {
             </p>
             <div className="about-signature">
               <span className="sig-title">Editor-in-Chief</span>
-              <span className="sig-name">Sasha K. Vang</span>
+              <span className="sig-name">Kennanyere Njoku</span>
             </div>
           </div>
           <div className="about-visual">
@@ -547,25 +547,9 @@ export default function Home() {
           </div>
           <div className="footer-links-grid">
             <div className="footer-col">
-              <h4>Explore</h4>
-              <ul>
-                <li><a href="#editorial">Editorial</a></li>
-                <li><a href="#about">Features</a></li>
-              </ul>
-            </div>
-            <div className="footer-col">
               <h4>Connect</h4>
               <ul>
-                <li><a href="https://www.instagram.com" target="_blank" rel="noreferrer">Instagram</a></li>
-                <li><a href="https://www.twitter.com" target="_blank" rel="noreferrer">Twitter</a></li>
-                <li><a href="https://www.pinterest.com" target="_blank" rel="noreferrer">Pinterest</a></li>
-              </ul>
-            </div>
-            <div className="footer-col">
-              <h4>Legal</h4>
-              <ul>
-                <li><a href="#">Privacy Policy</a></li>
-                <li><a href="#">Terms of Use</a></li>
+                <li><a href="https://www.instagram.com/_sleekpeak/" target="_blank" rel="noreferrer">Instagram</a></li>
               </ul>
             </div>
           </div>
