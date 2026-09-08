@@ -150,7 +150,7 @@ export async function sendNewArticleNotificationEmail(article, recipientEmails =
     return true;
   }
 
-  const senderEmail = process.env.BREVO_FROM_EMAIL || user;
+  const senderEmail = process.env.BREVO_FROM_EMAIL || process.env.BREVO_SMTP_USER || 'no-reply@sleek.mag';
   const emailHtml = `
     <div style="font-family: sans-serif; max-width: 620px; margin: 0 auto; padding: 24px; border: 1px solid #eee; border-radius: 12px; background: #fff;">
       <div style="text-align: center; margin-bottom: 20px;">
@@ -167,36 +167,46 @@ export async function sendNewArticleNotificationEmail(article, recipientEmails =
     </div>
   `;
 
-  try {
-    const brevoResponse = await fetch('https://api.brevo.com/v3/smtp/email', {
-      method: 'POST',
-      headers: {
-        'api-key': brevoApiKey,
-        'Content-Type': 'application/json',
-        'Accept': 'application/json',
-      },
-      body: JSON.stringify({
-        sender: {
-          name: 'SLEEK Magazine',
-          email: senderEmail,
+  // Send individually to each subscriber so recipients cannot see other addresses
+  async function sendToRecipient(targetEmail) {
+    try {
+      const res = await fetch('https://api.brevo.com/v3/smtp/email', {
+        method: 'POST',
+        headers: {
+          'api-key': brevoApiKey,
+          'Content-Type': 'application/json',
+          'Accept': 'application/json',
         },
-        to: emails.map((email) => ({ email })),
-        subject: `New Story: ${articleTitle}`,
-        htmlContent: emailHtml,
-        textContent: `New story from SLEEK: ${articleTitle}\n\n${teaser}\n\nRead it here: ${articleUrl}`,
-      }),
-    });
+        body: JSON.stringify({
+          sender: { name: 'SLEEK Magazine', email: senderEmail },
+          to: [{ email: targetEmail }],
+          subject: `New Story: ${articleTitle}`,
+          htmlContent: emailHtml,
+          textContent: `New story from SLEEK: ${articleTitle}\n\n${teaser}\n\nRead it here: ${articleUrl}`,
+        }),
+      });
 
-    const brevoData = await brevoResponse.json();
-    if (!brevoResponse.ok) {
-      console.warn('[EMAIL] Brevo new article notification failed:', brevoData);
-      return false;
+      const data = await res.json();
+      if (!res.ok) {
+        console.warn(`[EMAIL] Notification to ${targetEmail} failed:`, data);
+        return { ok: false, to: targetEmail, data };
+      }
+
+      return { ok: true, to: targetEmail, messageId: data.messageId };
+    } catch (err) {
+      console.error(`[EMAIL ERROR] Failed to send to ${targetEmail}:`, err.message || err);
+      return { ok: false, to: targetEmail, error: err.message || err };
     }
+  }
 
-    console.log('[EMAIL] New article notification successfully sent via Brevo API. Message ID:', brevoData.messageId);
-    return true;
-  } catch (error) {
-    console.error('[EMAIL ERROR] Failed to send new article notification via Brevo:', error.message || error);
+  const sendResults = await Promise.allSettled(emails.map((e) => sendToRecipient(e)));
+  const failures = sendResults.filter((r) => r.status === 'rejected' || (r.status === 'fulfilled' && !r.value.ok));
+
+  if (failures.length) {
+    console.warn(`[EMAIL] ${failures.length} of ${emails.length} notifications failed.`);
     return false;
   }
+
+  console.log('[EMAIL] New article notifications successfully sent to all subscribers via Brevo API.');
+  return true;
 }
