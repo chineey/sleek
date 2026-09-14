@@ -571,6 +571,8 @@ img {
     justify-content: space-between;
     align-items: center;
     padding: 0 4rem;
+    flex-wrap: nowrap;
+    gap: 1rem;
 }
 
 .nav-logo {
@@ -580,6 +582,8 @@ img {
     letter-spacing: 0.25em;
     color: var(--color-bronze);
     transition: var(--transition-fast);
+    white-space: nowrap;
+    flex-shrink: 0;
 }
 
 .nav-logo:hover {
@@ -702,6 +706,31 @@ img {
     .nav-cta {
         display: none;
         /* Hide in nav bar for mobile, available in menu/page */
+    }
+
+    .nav-logo {
+        font-size: 1.1rem;
+        letter-spacing: 0.15em;
+    }
+
+    .subscriber-badge {
+        font-size: 0.65rem;
+        padding: 0.25rem 0.5rem;
+        gap: 0.35rem;
+        letter-spacing: 0.05em;
+        flex-shrink: 0;
+        white-space: nowrap;
+    }
+
+    .nav-logout-btn {
+        font-size: 0.6rem;
+        margin-left: 0.5rem;
+        flex-shrink: 0;
+        white-space: nowrap;
+    }
+
+    .mobile-nav-toggle {
+        flex-shrink: 0;
     }
 
     .main-nav.menu-open .mobile-nav-toggle .bar:nth-child(1) {
