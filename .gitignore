@@ -9,6 +9,7 @@
 # next.js
 /.next/
 /out/
+scratch/sent_emails.txt
 
 # production
 /build

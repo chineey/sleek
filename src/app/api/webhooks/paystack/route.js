@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import crypto from 'crypto';
 import prisma from '../../../../lib/prisma';
+import { sendSubscriptionConfirmationEmail } from '../../../../lib/email';
 
 export async function POST(req) {
   try {
@@ -45,6 +46,11 @@ export async function POST(req) {
 
         console.log(`[WEBHOOK] Activating subscriber: ${email}`);
 
+        // Check prior status so we only send the confirmation email on a genuine
+        // new activation, not on every webhook retry Paystack sends for the same event.
+        const existingSubscriber = await prisma.subscriber.findUnique({ where: { email } });
+        const wasAlreadyActive = existingSubscriber?.status === 'active';
+
         // Upsert subscriber to active
         await prisma.subscriber.upsert({
           where: { email },
@@ -60,6 +66,14 @@ export async function POST(req) {
             paystackReference: reference
           }
         });
+
+        if (!wasAlreadyActive) {
+          try {
+            await sendSubscriptionConfirmationEmail(email);
+          } catch (emailErr) {
+            console.error('[WEBHOOK] Failed to send subscription confirmation email:', emailErr);
+          }
+        }
       } else {
         console.log('[WEBHOOK] Non-subscription payment success event ignored.', metadata);
       }

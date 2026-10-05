@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import prisma from '../../../../lib/prisma';
 import { verifyTransaction } from '../../../../lib/paystack';
 import { createSubscriberToken } from '../../../../lib/subscriberToken';
+import { sendSubscriptionConfirmationEmail } from '../../../../lib/email';
 
 export const dynamic = 'force-dynamic';
 
@@ -48,6 +49,9 @@ export async function GET(req) {
     }
 
     // Mark subscriber active
+    const existingSubscriber = await prisma.subscriber.findUnique({ where: { email } });
+    const wasAlreadyActive = existingSubscriber?.status === 'active';
+
     await prisma.subscriber.update({
       where: { email },
       data: {
@@ -56,6 +60,14 @@ export async function GET(req) {
         paystackReference: reference
       }
     });
+
+    if (!wasAlreadyActive) {
+      try {
+        await sendSubscriptionConfirmationEmail(email);
+      } catch (emailErr) {
+        console.error('[SUBSCRIBE] Failed to send subscription confirmation email:', emailErr);
+      }
+    }
 
     // Create session token
     const token = createSubscriberToken(email);

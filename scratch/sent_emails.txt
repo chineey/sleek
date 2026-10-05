@@ -16,3 +16,38 @@ Generated at: 2026-08-30T09:16:56.461Z
 URL: http://localhost:3000/api/magic-link/verify?token=65e6d386e0949076cd2cdfe4d5c9286d2bf858f0a3b8bbd320b81495a353572f
 Generated at: 2026-08-30T09:18:57.596Z
 ========================================
+
+========================================
+[EMAIL LOG] Magic Link for terrawimm@gmail.com
+URL: http://localhost:3000/api/magic-link/verify?token=3808cafb17bbafd636d1b9f288cbf28766453947b722a66957ec295fdcd9c00c
+Generated at: 2026-09-14T10:22:36.617Z
+========================================
+
+========================================
+[EMAIL LOG] Subscription confirmation for proterrence33@gmail.com
+Generated at: 2026-09-14T10:43:58.295Z
+========================================
+
+========================================
+[EMAIL LOG] Magic Link for chinemezenjoku@gmail.com
+URL: http://localhost:3000/api/magic-link/verify?token=4fb77f447188191a9c3880632b0a0bcd5dd9b3d302f729140efd98249ebe637c
+Generated at: 2026-10-05T15:32:03.604Z
+========================================
+
+========================================
+[EMAIL LOG] Magic Link for chinemezenjoku@gmail.com
+URL: http://localhost:3000/api/magic-link/verify?token=c8aeadcc115bd0e2db8756a6a71bad2eeeb324e22241faba4ecd84dff9c936bc
+Generated at: 2026-10-05T15:50:47.111Z
+========================================
+
+========================================
+[EMAIL LOG] Magic Link for chinemezenjoku@gmail.com
+URL: http://localhost:3000/api/magic-link/verify?token=0b4dc0079fbc25306b03fa173380941c6880628563d483839725b7c210643169
+Generated at: 2026-10-05T15:56:04.753Z
+========================================
+
+========================================
+[EMAIL LOG] Magic Link for chinemezenjoku@gmail.com
+URL: http://localhost:3000/api/magic-link/verify?token=95488c76b51ff1784f0df228b1af85945a45c09a01818ed329cacf8101ecd228
+Generated at: 2026-10-05T15:57:33.251Z
+========================================
