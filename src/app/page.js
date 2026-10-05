@@ -218,6 +218,17 @@ export default function Home() {
       const data = await res.json();
 
       if (!res.ok) {
+        if (data.error === 'already_active_subscriber') {
+          setFormFeedback({
+            message: 'You are already subscribed to SLEEK Magazine. Please sign in.',
+            type: 'info'
+          });
+          setShowMagicLinkForm(true);
+          setMagicLinkEmail(email);
+          setIsSubmitting(false);
+          return;
+        }
+
         throw new Error(data.error || 'Failed to initiate checkout.');
       }
 

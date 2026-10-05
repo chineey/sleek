@@ -51,3 +51,85 @@ Generated at: 2026-10-05T15:56:04.753Z
 URL: http://localhost:3000/api/magic-link/verify?token=95488c76b51ff1784f0df228b1af85945a45c09a01818ed329cacf8101ecd228
 Generated at: 2026-10-05T15:57:33.251Z
 ========================================
+
+========================================
+[EMAIL LOG] Subscription confirmation for chinemezenjoku@gmail.com
+Generated at: 2026-10-05T16:37:12.961Z
+========================================
+
+========================================
+[EMAIL LOG] Magic Link for chinemezenjoku@gmail.com
+URL: http://localhost:3000/api/magic-link/verify?token=86b8e622a5ae94a4cb297cc3f9511ab02af7de106083f3a8b3116db2666c78ce
+Generated at: 2026-10-05T16:38:42.559Z
+========================================
+
+========================================
+[EMAIL LOG] Magic Link for chinemezenjoku@gmail.com
+URL: http://localhost:3000/api/magic-link/verify?token=8042f03c7969665c57ad50ece9d3c9e7dff7d9ba863bea76594af64424668ea7
+Generated at: 2026-10-05T16:39:35.838Z
+========================================
+
+========================================
+[EMAIL LOG] Magic Link for chinemezenjoku@gmail.com
+URL: http://localhost:3000/api/magic-link/verify?token=a33e8064cf9ea9ee106a147b5a30d2b4e743efddcab1a2962b72750ab6d54f79
+Generated at: 2026-10-05T16:54:34.387Z
+========================================
+
+========================================
+[EMAIL LOG] Magic Link for chinemezenjoku@gmail.com
+URL: http://localhost:3000/api/magic-link/verify?token=2950a5911117069a9f3f920899955ef72c41a4024a3f61be7a1bca005f48017e
+Generated at: 2026-10-05T16:55:49.920Z
+========================================
+
+========================================
+[EMAIL LOG] Magic Link for chinemezenjoku@gmail.com
+URL: http://localhost:3000/api/magic-link/verify?token=0244cf292a4731fce150466fe47c6002cc50e0e307bc484def4b2c175c158a37
+Generated at: 2026-10-05T17:00:03.441Z
+========================================
+
+========================================
+[EMAIL LOG] Magic Link for chinemezenjoku@gmail.com
+URL: http://localhost:3000/api/magic-link/verify?token=1a96f6732087739d436a751e6dffe527e9db311620d3bd07d9fc42d7ba845fb2
+Generated at: 2026-10-05T17:17:41.885Z
+========================================
+
+========================================
+[EMAIL LOG] Magic Link for chinemezenjoku@gmail.com
+URL: http://localhost:3000/api/magic-link/verify?token=bf5c3fc65ac67907aab7ba46587ed7f4e18184c0c23cd0aa6b53410d7f2ea26b
+Generated at: 2026-10-05T18:28:28.123Z
+========================================
+
+========================================
+[EMAIL LOG] Subscription confirmation for terrawimm@gmail.com
+Generated at: 2026-10-05T18:29:31.079Z
+========================================
+
+========================================
+[EMAIL LOG] Magic Link for chinemezenjoku@gmail.com
+URL: http://localhost:3000/api/magic-link/verify?token=abe3a17cb74da700aff188a96086212a73ec5da4b28c8870e0745ac64e1cfc62
+Generated at: 2026-10-05T18:35:22.759Z
+========================================
+
+========================================
+[EMAIL LOG] Magic Link for chinemezenjoku@gmail.com
+URL: http://localhost:3000/api/magic-link/verify?token=7429c936889076647edfb005cb21745c6a5240b4c7bea851cdf0f5b8e68e4c0d
+Generated at: 2026-10-05T18:37:03.123Z
+========================================
+
+========================================
+[EMAIL LOG] Magic Link for chinemezenjoku@gmail.com
+URL: http://localhost:3000/api/magic-link/verify?token=6636953227f91f5bbddb9ea1a1b83bc9bae7b82f42ece4c2f34f9cacaf9bc848
+Generated at: 2026-10-05T18:39:45.280Z
+========================================
+
+========================================
+[EMAIL LOG] Magic Link for chinemezenjoku@gmail.com
+URL: http://localhost:3000/api/magic-link/verify?token=4fab3596b213faa3585306ce3490e24971cdcbc05d0dd7ed74658328da23ee70
+Generated at: 2026-10-05T18:42:30.602Z
+========================================
+
+========================================
+[EMAIL LOG] Magic Link for chinemezenjoku@gmail.com
+URL: http://localhost:3000/api/magic-link/verify?token=704969d103dc49a6f3907f8934c0b919c5f3ba6ac4acc39f3f8a1bc385d4a1de
+Generated at: 2026-10-05T18:50:06.326Z
+========================================

@@ -1,6 +1,16 @@
 import fs from 'fs';
 import path from 'path';
 
+function getEnvVar(...names) {
+  for (const name of names) {
+    const value = process.env[name];
+    if (value !== undefined && value !== null && String(value).trim() !== '') {
+      return String(value).trim();
+    }
+  }
+  return '';
+}
+
 function escapeHtml(value = '') {
   return String(value)
     .replace(/&/g, '&amp;')
@@ -31,6 +41,18 @@ function safeAppendEmailLog(logMessage) {
   console.error('Failed to log email to file:', new Error('No writable log location available'));
 }
 
+function getBrevoCredentialIssue({ smtpUser, smtpPass, brevoApiKey }) {
+  if (!smtpUser) return 'BREVO_SMTP_USER is missing.';
+  if (!smtpPass) return 'BREVO_SMTP_PASS is missing.';
+  if (!brevoApiKey) return 'BREVO_API_KEY is missing.';
+  if (smtpUser.includes('your-brevo')) return 'BREVO_SMTP_USER still contains a placeholder value.';
+  if (smtpPass.includes('your-brevo') || smtpPass.includes('your-brevo-smtp-key')) return 'BREVO_SMTP_PASS still contains a placeholder value; use the SMTP key from Brevo (starts with xsmtpsib-).';
+  if (brevoApiKey.includes('your-brevo') || brevoApiKey.includes('your_brevo_api_key_here')) return 'BREVO_API_KEY still contains a placeholder value; use the API key from Brevo (starts with xkeysib-).';
+  if (smtpPass.startsWith('xkeysib-')) return 'BREVO_SMTP_PASS looks like a Brevo API key, not an SMTP key. Use the SMTP key (starts with xsmtpsib-).';
+  if (brevoApiKey.startsWith('xsmtpsib-')) return 'BREVO_API_KEY looks like a Brevo SMTP key, not an API key. Use the API key (starts with xkeysib-).';
+  return null;
+}
+
 export async function sendMagicLinkEmail(email, token) {
   const nextAuthUrl = process.env.NEXTAUTH_URL || 'http://localhost:3000';
   const magicLink = `${nextAuthUrl}/api/magic-link/verify?token=${token}`;
@@ -45,11 +67,18 @@ Generated at: ${new Date().toISOString()}
   console.log(logMessage);
   safeAppendEmailLog(logMessage);
 
-  const host = process.env.BREVO_SMTP_HOST || 'smtp-relay.brevo.com';
-  const port = parseInt(process.env.BREVO_SMTP_PORT || '587', 10);
-  const smtpUser = process.env.BREVO_SMTP_USER;
-  const smtpPass = process.env.BREVO_SMTP_PASS;
-  const brevoApiKey = process.env.BREVO_API_KEY;
+  const host = getEnvVar('BREVO_SMTP_HOST', 'BREVO_HOST') || 'smtp-relay.brevo.com';
+  const port = parseInt(getEnvVar('BREVO_SMTP_PORT', 'BREVO_PORT') || '587', 10);
+  const smtpUser = getEnvVar('BREVO_SMTP_USER', 'BREVO_USER', 'BREVO_LOGIN');
+  const smtpPass = getEnvVar('BREVO_SMTP_PASS', 'BREVO_SMTP_KEY', 'BREVO_SMTP_PASSWORD', 'BREVO_PASSWORD');
+  const brevoApiKey = getEnvVar('BREVO_API_KEY', 'BREVO_KEY', 'SENDINBLUE_API_KEY');
+  const brevoCredentialIssue = getBrevoCredentialIssue({ smtpUser, smtpPass, brevoApiKey });
+
+  if (brevoCredentialIssue) {
+    console.warn('[EMAIL] Brevo credentials are misconfigured:', brevoCredentialIssue);
+    console.log('[EMAIL] Brevo SMTP/API credentials are not configured or invalid. Logged to console and fallback log file.');
+    return true;
+  }
 
   if (!smtpUser || !smtpPass || !brevoApiKey || smtpPass.includes('your-brevo') || smtpUser.includes('your-brevo') || brevoApiKey.includes('your-brevo')) {
     console.log('[EMAIL] Brevo SMTP/API credentials are not configured. Logged to console and fallback log file.');
@@ -71,7 +100,7 @@ Generated at: ${new Date().toISOString()}
     </div>
   `;
 
-  const senderEmail = process.env.BREVO_FROM_EMAIL || smtpUser;
+  const senderEmail = getEnvVar('BREVO_FROM_EMAIL', 'BREVO_EMAIL_FROM') || smtpUser;
 
   try {
     const brevoResponse = await fetch('https://api.brevo.com/v3/smtp/email', {
@@ -144,11 +173,18 @@ Generated at: ${new Date().toISOString()}
   console.log(logMessage);
   safeAppendEmailLog(logMessage);
 
-  const host = process.env.BREVO_SMTP_HOST || 'smtp-relay.brevo.com';
-  const port = parseInt(process.env.BREVO_SMTP_PORT || '587', 10);
-  const smtpUser = process.env.BREVO_SMTP_USER;
-  const smtpPass = process.env.BREVO_SMTP_PASS;
-  const brevoApiKey = process.env.BREVO_API_KEY;
+  const host = getEnvVar('BREVO_SMTP_HOST', 'BREVO_HOST') || 'smtp-relay.brevo.com';
+  const port = parseInt(getEnvVar('BREVO_SMTP_PORT', 'BREVO_PORT') || '587', 10);
+  const smtpUser = getEnvVar('BREVO_SMTP_USER', 'BREVO_USER', 'BREVO_LOGIN');
+  const smtpPass = getEnvVar('BREVO_SMTP_PASS', 'BREVO_SMTP_KEY', 'BREVO_SMTP_PASSWORD', 'BREVO_PASSWORD');
+  const brevoApiKey = getEnvVar('BREVO_API_KEY', 'BREVO_KEY', 'SENDINBLUE_API_KEY');
+  const brevoCredentialIssue = getBrevoCredentialIssue({ smtpUser, smtpPass, brevoApiKey });
+
+  if (brevoCredentialIssue) {
+    console.warn('[EMAIL] Brevo credentials are misconfigured:', brevoCredentialIssue);
+    console.log('[EMAIL] Brevo SMTP/API credentials are not configured or invalid. Logged to console and fallback log file.');
+    return true;
+  }
 
   if (!smtpUser || !smtpPass || !brevoApiKey || smtpPass.includes('your-brevo') || smtpUser.includes('your-brevo') || brevoApiKey.includes('your-brevo')) {
     console.log('[EMAIL] Brevo SMTP/API credentials are not configured. Logged to console and fallback log file.');
@@ -168,7 +204,7 @@ Generated at: ${new Date().toISOString()}
     </div>
   `;
 
-  const senderEmail = process.env.BREVO_FROM_EMAIL || smtpUser;
+  const senderEmail = getEnvVar('BREVO_FROM_EMAIL', 'BREVO_EMAIL_FROM') || smtpUser;
 
   try {
     const brevoResponse = await fetch('https://api.brevo.com/v3/smtp/email', {
@@ -250,14 +286,14 @@ export async function sendNewArticleNotificationEmail(article, recipientEmails =
     .trim();
   const teaser = previewText ? previewText.slice(0, 180) : 'A new story has just been published on SLEEK.';
 
-  const brevoApiKey = process.env.BREVO_API_KEY;
+  const brevoApiKey = getEnvVar('BREVO_API_KEY', 'BREVO_KEY', 'SENDINBLUE_API_KEY');
 
   if (!brevoApiKey || brevoApiKey.includes('your-brevo')) {
     console.log('[EMAIL] Brevo API key not set in .env. Skipping email notification.');
     return true;
   }
 
-  const senderEmail = process.env.BREVO_FROM_EMAIL || process.env.BREVO_SMTP_USER || 'no-reply@sleek.mag';
+  const senderEmail = getEnvVar('BREVO_FROM_EMAIL', 'BREVO_EMAIL_FROM') || getEnvVar('BREVO_SMTP_USER', 'BREVO_USER', 'BREVO_LOGIN') || 'no-reply@sleek.mag';
   const emailHtml = `
     <div style="font-family: sans-serif; max-width: 620px; margin: 0 auto; padding: 24px; border: 1px solid #eee; border-radius: 12px; background: #fff;">
       <div style="text-align: center; margin-bottom: 20px;">

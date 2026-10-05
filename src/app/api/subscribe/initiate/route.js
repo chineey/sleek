@@ -14,6 +14,14 @@ export async function POST(req) {
       where: { email },
     });
 
+    if (subscriber?.status === 'active') {
+      return NextResponse.json({
+        error: 'already_active_subscriber',
+        alreadySubscribed: true,
+        message: 'Already subscribed to SLEEK Magazine. Please sign in.'
+      }, { status: 409 });
+    }
+
     if (!subscriber) {
       subscriber = await prisma.subscriber.create({
         data: { email, status: 'inactive' },
