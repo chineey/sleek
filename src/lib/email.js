@@ -195,7 +195,7 @@ Generated at: ${new Date().toISOString()}
     <div style="font-family: sans-serif; max-width: 500px; margin: 0 auto; padding: 20px; border: 1px solid #eee; border-radius: 8px;">
       <h2 style="color: #ba9c87; text-align: center;">S L E E K</h2>
       <p>Hello,</p>
-      <p style="font-size: 16px; color: #333;">You have subscribed to Sleek monthly access.</p>
+      <p style="font-size: 16px; color: #333;">Thank you for subscribing to SLEEK Magazine. Enjoy the articles.</p>
       <div style="text-align: center; margin: 30px 0;">
         <a href="${nextAuthUrl}/#editorial" style="background-color: #ba9c87; color: white; padding: 12px 24px; text-decoration: none; border-radius: 4px; font-weight: 500; display: inline-block;">Start Reading</a>
       </div>
@@ -220,9 +220,9 @@ Generated at: ${new Date().toISOString()}
           email: senderEmail,
         },
         to: [{ email }],
-        subject: 'You have subscribed to Sleek monthly access',
+        subject: 'Thank you for subscribing to SLEEK Magazine. Enjoy the articles.',
         htmlContent: emailHtml,
-        textContent: 'You have subscribed to Sleek monthly access.\n\nThank you for joining SLEEK Magazine.',
+        textContent: 'Thank you for subscribing to SLEEK Magazine. Enjoy the articles.',
       }),
     });
 
@@ -252,8 +252,8 @@ Generated at: ${new Date().toISOString()}
     const info = await transporter.sendMail({
       from: `"SLEEK Magazine" <${senderEmail}>`,
       to: email,
-      subject: 'You have subscribed to Sleek monthly access',
-      text: 'You have subscribed to Sleek monthly access.\n\nThank you for joining SLEEK Magazine.',
+      subject: 'Thank you for subscribing to SLEEK Magazine. Enjoy the articles.',
+      text: 'Thank you for subscribing to SLEEK Magazine. Enjoy the articles.',
       html: emailHtml,
     });
 
