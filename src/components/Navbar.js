@@ -12,9 +12,11 @@ export default function Navbar() {
   const [isSubscriber, setIsSubscriber] = useState(false);
 
   // Hide the global navigation bar on admin or login routes
-  if (pathname.startsWith('/admin') || pathname.startsWith('/login')) {
+  if (pathname.startsWith('/admin') || pathname.startsWith('/shopadmin') || pathname.startsWith('/login')) {
     return null;
   }
+
+  const isShopActive = pathname === '/shop';
 
   const checkSubscriberStatus = async () => {
     try {
@@ -50,7 +52,7 @@ export default function Navbar() {
         setIsMenuOpen(false);
       }
 
-      // Scrollspy active section detection
+     
       const sections = ['editorial', 'about', 'subscribe'];
       let currentSection = '';
       for (const sectionId of sections) {
@@ -95,14 +97,14 @@ export default function Navbar() {
   return (
     <nav className={`main-nav ${isVisible ? 'visible' : ''} ${isMenuOpen ? 'menu-open' : ''}`} id="main-nav">
       <div className="nav-container">
-        <Link href="#cover-hero" className="nav-logo">
+        <Link href="/#cover-hero" className="nav-logo">
           S L E E K
         </Link>
         
         <ul className="nav-links">
           <li>
             <Link 
-              href="#editorial" 
+              href="/#editorial" 
               className={`nav-link-item ${activeSection === 'editorial' ? 'active' : ''}`}
               onClick={() => setIsMenuOpen(false)}
             >
@@ -111,7 +113,7 @@ export default function Navbar() {
           </li>
           <li>
             <Link 
-              href="#about" 
+              href="/#about" 
               className={`nav-link-item ${activeSection === 'about' ? 'active' : ''}`}
               onClick={() => setIsMenuOpen(false)}
             >
@@ -120,11 +122,20 @@ export default function Navbar() {
           </li>
           <li>
             <Link 
-              href="#subscribe" 
+              href="/#subscribe" 
               className={`nav-link-item ${activeSection === 'subscribe' ? 'active' : ''}`}
               onClick={() => setIsMenuOpen(false)}
             >
               Subscribe
+            </Link>
+          </li>
+          <li>
+            <Link 
+              href="/shop" 
+              className={`nav-link-item ${isShopActive ? 'active' : ''}`}
+              onClick={() => setIsMenuOpen(false)}
+            >
+              Shop
             </Link>
           </li>
         </ul>
@@ -137,7 +148,7 @@ export default function Navbar() {
             </button>
           </div>
         ) : (
-          <Link href="#subscribe" className="nav-cta btn-hover-effect">
+          <Link href="/#subscribe" className="nav-cta btn-hover-effect">
             SUBSCRIBE
           </Link>
         )}
