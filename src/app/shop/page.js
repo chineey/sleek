@@ -95,7 +95,7 @@ export default function ShopPage() {
             <span className="shop-kicker">SLEEK</span>
             <h1>Shop the sleek magazine.</h1>
             <p>
-              Elevate your mind with in style with sleek. Step into a world of ideas, stories and perspectives.
+              Elevate your mind in style with sleek. Step into a world of ideas, stories and perspectives.
               Or just Be cool.
             </p>
             <div className="shop-price-badge">Physical Copies are available for purchase</div>
