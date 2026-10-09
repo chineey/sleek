@@ -92,13 +92,13 @@ export default function ShopPage() {
       <div className="shop-shell">
         <section className="shop-hero">
           <div className="shop-hero-copy">
-            <span className="shop-kicker">SLEEK EDIT</span>
-            <h1>Shop the collection.</h1>
+            <span className="shop-kicker">SLEEK</span>
+            <h1>Shop the sleek magazine.</h1>
             <p>
-              Curated pieces for the modern wardrobe — designed for statement dressing, everyday polish,
-              and a slower, more intentional way to wear luxury.
+              Elevate your mind with in style with sleek. Step into a world of ideas, stories and perspectives.
+              Or just Be cool.
             </p>
-            <div className="shop-price-badge">Secure checkout powered by Paystack</div>
+            <div className="shop-price-badge">Physical Copies are available for purchase</div>
           </div>
 
           <div className="shop-hero-card">
