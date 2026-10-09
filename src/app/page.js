@@ -351,7 +351,7 @@ export default function Home() {
 
           {/* Categories Filter */}
           <div className="filter-container">
-            {['all', 'fashion', 'culture', 'design', 'editorial'].map((cat) => (
+            {['all', 'fashion', 'culture', 'sleek peak', 'sports', 'business news', 'comics', 'editorial'].map((cat) => (
               <button
                 key={cat}
                 className={`filter-btn ${activeCategory === cat ? 'active' : ''}`}

@@ -135,7 +135,7 @@ export default function Navbar() {
               className={`nav-link-item ${isShopActive ? 'active' : ''}`}
               onClick={() => setIsMenuOpen(false)}
             >
-              Shop
+              Shop Sleek
             </Link>
           </li>
         </ul>

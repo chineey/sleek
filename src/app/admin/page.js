@@ -672,7 +672,10 @@ export default function Admin() {
                   >
                     <option value="Fashion">Fashion</option>
                     <option value="Culture">Culture</option>
-                    <option value="Design">Design</option>
+                    <option value="Sleek Peak">Sleek Peak</option>
+                    <option value="Sports">Sports</option>
+                    <option value="Business News">Business News</option>
+                    <option value="Comics">Comics</option>
                     <option value="Editorial">Editorial</option>
                   </select>
                 </div>
