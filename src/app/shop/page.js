@@ -1,21 +1,27 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import PickupLocationSelector from '../../components/PickupLocationSelector';
 
 const defaultImage = 'https://images.unsplash.com/photo-1521572267360-ee0c2909d518?q=80&w=1200&auto=format&fit=crop';
 
 export default function ShopPage() {
   const [products, setProducts] = useState([]);
   const [email, setEmail] = useState('');
+  const [selectedPickupLocation, setSelectedPickupLocation] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isCheckingOut, setIsCheckingOut] = useState(false);
   const [checkoutMessage, setCheckoutMessage] = useState({ message: '', type: '' });
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
+    const orderRef = params.get('order');
     if (params.get('checkout') === 'success') {
+      const msg = orderRef
+        ? `Payment successful! Order #${orderRef} has been placed. Check your email for pickup instructions.`
+        : 'Payment successful! Your order has been placed. Check your email for pickup instructions.';
       setCheckoutMessage({
-        message: 'Payment successful. Your order is being processed.',
+        message: msg,
         type: 'success',
       });
       window.history.replaceState({}, document.title, window.location.pathname);
@@ -61,6 +67,11 @@ export default function ShopPage() {
       return;
     }
 
+    if (!selectedPickupLocation) {
+      setCheckoutMessage({ message: 'Please select a pickup location first.', type: 'error' });
+      return;
+    }
+
     setIsCheckingOut(true);
     setCheckoutMessage({ message: '', type: '' });
 
@@ -68,7 +79,12 @@ export default function ShopPage() {
       const res = await fetch('/api/shop/checkout', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ productId: product.id, email }),
+        body: JSON.stringify({
+          productId: product.id,
+          email,
+          pickupLocationId: selectedPickupLocation.id,
+          pickupLocationName: selectedPickupLocation.name,
+        }),
       });
 
       const data = await res.json();
@@ -93,7 +109,7 @@ export default function ShopPage() {
         <section className="shop-hero">
           <div className="shop-hero-copy">
             <span className="shop-kicker">SLEEK</span>
-            <h1>Shop the sleek magazine.</h1>
+            <h1>Shop sleek.</h1>
             <p>
               Elevate your mind in style with sleek. Step into a world of ideas, stories and perspectives.
               Or just Be cool.
@@ -119,9 +135,19 @@ export default function ShopPage() {
         </section>
 
         {checkoutMessage.message && (
-          <div className={`admin-feedback ${checkoutMessage.type}`}>
+          <div className={`admin-feedback ${checkoutMessage.type}`} style={{ marginBottom: '2rem' }}>
             {checkoutMessage.message}
           </div>
+        )}
+
+        {/* Pickup Location Selection */}
+        {products.length > 0 && (
+          <section style={{ marginBottom: '3rem' }}>
+            <PickupLocationSelector
+              onLocationSelect={setSelectedPickupLocation}
+              selectedLocationId={selectedPickupLocation?.id}
+            />
+          </section>
         )}
 
         {isLoading ? (

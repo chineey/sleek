@@ -34,7 +34,7 @@ export default function Admin() {
   const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
 
   // Cover Settings states
-  const [activeTab, setActiveTab] = useState('articles'); // 'articles' | 'cover'
+  const [activeTab, setActiveTab] = useState('articles'); // 'articles' | 'cover' | 'locations' | 'orders'
   const [coverTitle, setCoverTitle] = useState('');
   const [coverIssue, setCoverIssue] = useState('');
   const [coverLabel, setCoverLabel] = useState('');
@@ -42,6 +42,22 @@ export default function Admin() {
   const [coverUrl, setCoverUrl] = useState('');
   const [coverSocial, setCoverSocial] = useState('');
   const [coverImage, setCoverImage] = useState('');
+
+  // Pickup Locations states
+  const [locationsList, setLocationsList] = useState([]);
+  const [selectedLocationId, setSelectedLocationId] = useState('');
+  const [locationName, setLocationName] = useState('');
+  const [locationAddress, setLocationAddress] = useState('');
+  const [locationOpeningHours, setLocationOpeningHours] = useState('Mon - Sat: 9:00 AM - 6:00 PM');
+  const [locationLat, setLocationLat] = useState('');
+  const [locationLng, setLocationLng] = useState('');
+  const [locationActive, setLocationActive] = useState(true);
+
+  // Shop Orders states
+  const [ordersList, setOrdersList] = useState([]);
+  const [isLoadingOrders, setIsLoadingOrders] = useState(false);
+  const [resendingOrderId, setResendingOrderId] = useState(null);
+  const [orderSearchQuery, setOrderSearchQuery] = useState('');
 
   // Fetch cover settings
   useEffect(() => {
@@ -118,6 +134,8 @@ export default function Admin() {
   useEffect(() => {
     if (status === 'authenticated') {
       fetchArticles();
+      fetchPickupLocations();
+      fetchOrders();
     }
   }, [status]);
 
@@ -132,6 +150,67 @@ export default function Admin() {
       }
     } catch (err) {
       console.error('Failed to fetch articles:', err);
+    }
+  };
+
+  // Fetch pickup locations
+  const fetchPickupLocations = async () => {
+    try {
+      const res = await fetch('/api/pickup-locations');
+      if (res.ok) {
+        const data = await res.json();
+        const sorted = data.sort((a, b) => a.order - b.order);
+        setLocationsList(sorted);
+      }
+    } catch (err) {
+      console.error('Failed to fetch pickup locations:', err);
+    }
+  };
+
+  // Fetch shop orders
+  const fetchOrders = async () => {
+    setIsLoadingOrders(true);
+    try {
+      const res = await fetch('/api/orders');
+      if (res.ok) {
+        const data = await res.json();
+        setOrdersList(data);
+      }
+    } catch (err) {
+      console.error('Failed to fetch orders:', err);
+    } finally {
+      setIsLoadingOrders(false);
+    }
+  };
+
+  // Resend order confirmation email
+  const handleResendEmail = async (orderId) => {
+    setResendingOrderId(orderId);
+    setFeedback({ message: '', type: '' });
+    try {
+      const res = await fetch(`/api/orders/${orderId}/resend-email`, {
+        method: 'POST',
+      });
+      const data = await res.json();
+      if (res.ok && data.success) {
+        setFeedback({ message: data.message || 'Confirmation email resent successfully!', type: 'success' });
+        if (data.order) {
+          setOrdersList((prev) =>
+            prev.map((o) => (o.id === orderId ? data.order : o))
+          );
+        }
+      } else {
+        setFeedback({ message: data.message || 'Failed to resend confirmation email.', type: 'error' });
+        if (data.order) {
+          setOrdersList((prev) =>
+            prev.map((o) => (o.id === orderId ? data.order : o))
+          );
+        }
+      }
+    } catch (err) {
+      setFeedback({ message: 'Network error resending email.', type: 'error' });
+    } finally {
+      setResendingOrderId(null);
     }
   };
 
@@ -565,6 +644,198 @@ export default function Admin() {
 
   const isFormEnabled = selectedArticleId && selectedArticleId !== '';
 
+  // Pickup Location handlers
+  const handleSelectLocation = (e) => {
+    const val = e.target.value;
+    setSelectedLocationId(val);
+    setFeedback({ message: '', type: '' });
+
+    if (val === 'new') {
+      setLocationName('');
+      setLocationAddress('');
+      setLocationOpeningHours('Mon - Sat: 9:00 AM - 6:00 PM');
+      setLocationLat('');
+      setLocationLng('');
+      setLocationActive(true);
+      return;
+    }
+
+    if (!val || val === '') {
+      setLocationName('');
+      setLocationAddress('');
+      setLocationOpeningHours('Mon - Sat: 9:00 AM - 6:00 PM');
+      setLocationLat('');
+      setLocationLng('');
+      setLocationActive(true);
+      return;
+    }
+
+    const selected = locationsList.find((l) => l.id === val);
+    if (selected) {
+      setLocationName(selected.name);
+      setLocationAddress(selected.address);
+      setLocationOpeningHours(selected.openingHours || 'Mon - Sat: 9:00 AM - 6:00 PM');
+      setLocationLat(selected.latitude.toString());
+      setLocationLng(selected.longitude.toString());
+      setLocationActive(selected.active);
+    }
+  };
+
+  const handleSubmitLocation = async (e) => {
+    e.preventDefault();
+    if (!locationName || !locationAddress || !locationLat || !locationLng) {
+      setFeedback({ message: 'All fields are required.', type: 'error' });
+      return;
+    }
+
+    const latNum = parseFloat(locationLat);
+    const lngNum = parseFloat(locationLng);
+    if (isNaN(latNum) || isNaN(lngNum) || latNum < -90 || latNum > 90 || lngNum < -180 || lngNum > 180) {
+      setFeedback({ 
+        message: 'Invalid latitude or longitude. Latitude: -90 to 90, Longitude: -180 to 180.', 
+        type: 'error' 
+      });
+      return;
+    }
+
+    setIsSubmitting(true);
+    setFeedback({ message: '', type: '' });
+
+    try {
+      if (selectedLocationId === 'new') {
+        const res = await fetch('/api/pickup-locations', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            name: locationName,
+            address: locationAddress,
+            openingHours: locationOpeningHours || 'Mon - Sat: 9:00 AM - 6:00 PM',
+            latitude: latNum,
+            longitude: lngNum,
+            active: locationActive,
+          }),
+        });
+
+        const data = await res.json();
+
+        if (res.ok) {
+          setFeedback({ message: 'Pickup location created successfully!', type: 'success' });
+          setLocationName('');
+          setLocationAddress('');
+          setLocationOpeningHours('Mon - Sat: 9:00 AM - 6:00 PM');
+          setLocationLat('');
+          setLocationLng('');
+          setLocationActive(true);
+          setSelectedLocationId('');
+          await fetchPickupLocations();
+        } else {
+          setFeedback({ message: data.error || 'Failed to create location.', type: 'error' });
+        }
+      } else {
+        const res = await fetch('/api/pickup-locations', {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            id: selectedLocationId,
+            name: locationName,
+            address: locationAddress,
+            openingHours: locationOpeningHours || 'Mon - Sat: 9:00 AM - 6:00 PM',
+            latitude: latNum,
+            longitude: lngNum,
+            active: locationActive,
+          }),
+        });
+
+        const data = await res.json();
+
+        if (res.ok) {
+          setFeedback({ message: 'Pickup location updated successfully!', type: 'success' });
+          await fetchPickupLocations();
+        } else {
+          setFeedback({ message: data.error || 'Failed to update location.', type: 'error' });
+        }
+      }
+    } catch (err) {
+      setFeedback({ message: 'Network error saving location.', type: 'error' });
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleDeleteLocation = async () => {
+    if (!selectedLocationId || selectedLocationId === 'new') {
+      setFeedback({ message: 'Please select a location to delete.', type: 'error' });
+      return;
+    }
+
+    if (!window.confirm('Are you sure you want to delete this pickup location?')) return;
+
+    setIsSubmitting(true);
+    setFeedback({ message: '', type: '' });
+
+    try {
+      const res = await fetch(`/api/pickup-locations?id=${selectedLocationId}`, {
+        method: 'DELETE',
+      });
+
+      const data = await res.json();
+
+      if (res.ok) {
+        setFeedback({ message: 'Pickup location deleted successfully.', type: 'success' });
+        setLocationName('');
+        setLocationAddress('');
+        setLocationLat('');
+        setLocationLng('');
+        setLocationActive(true);
+        setSelectedLocationId('');
+        await fetchPickupLocations();
+      } else {
+        setFeedback({ message: data.error || 'Failed to delete location.', type: 'error' });
+      }
+    } catch (err) {
+      setFeedback({ message: 'Network error deleting location.', type: 'error' });
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleMoveLocation = async (index, direction) => {
+    const newList = [...locationsList];
+    const targetIndex = direction === 'up' ? index - 1 : index + 1;
+
+    if (targetIndex < 0 || targetIndex >= newList.length) return;
+
+    const temp = newList[index];
+    newList[index] = newList[targetIndex];
+    newList[targetIndex] = temp;
+
+    setLocationsList(newList);
+
+    const updatedOrders = newList.map((item, idx) => ({
+      id: item.id,
+      order: idx,
+    }));
+
+    try {
+      const res = await fetch('/api/pickup-locations', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ orders: updatedOrders }),
+      });
+
+      if (!res.ok) {
+        const data = await res.json();
+        setFeedback({ message: data.error || 'Failed to save location order.', type: 'error' });
+        await fetchPickupLocations();
+      }
+    } catch (err) {
+      setFeedback({ message: 'Network error saving location order.', type: 'error' });
+      await fetchPickupLocations();
+    }
+  };
+
+  const isLocationFormEnabled = selectedLocationId && selectedLocationId !== '';
+
   return (
     <div className="admin-container">
       <header className="admin-header">
@@ -611,6 +882,42 @@ export default function Admin() {
           }}
         >
           Cover Settings
+        </button>
+        <button
+          type="button"
+          onClick={() => { setActiveTab('locations'); fetchPickupLocations(); setFeedback({ message: '', type: '' }); }}
+          style={{
+            background: 'none',
+            border: 'none',
+            color: activeTab === 'locations' ? 'var(--color-bronze)' : 'var(--color-muted)',
+            fontSize: '0.85rem',
+            fontWeight: 600,
+            letterSpacing: '0.15em',
+            padding: '1rem 0',
+            borderBottom: activeTab === 'locations' ? '2px solid var(--color-bronze)' : '2px solid transparent',
+            cursor: 'pointer',
+            textTransform: 'uppercase'
+          }}
+        >
+          Pickup Locations
+        </button>
+        <button
+          type="button"
+          onClick={() => { setActiveTab('orders'); fetchOrders(); setFeedback({ message: '', type: '' }); }}
+          style={{
+            background: 'none',
+            border: 'none',
+            color: activeTab === 'orders' ? 'var(--color-bronze)' : 'var(--color-muted)',
+            fontSize: '0.85rem',
+            fontWeight: 600,
+            letterSpacing: '0.15em',
+            padding: '1rem 0',
+            borderBottom: activeTab === 'orders' ? '2px solid var(--color-bronze)' : '2px solid transparent',
+            cursor: 'pointer',
+            textTransform: 'uppercase'
+          }}
+        >
+          Shop Orders
         </button>
       </div>
 
@@ -922,6 +1229,416 @@ export default function Admin() {
             </div>
           )}
         </>
+      ) : activeTab === 'locations' ? (
+        <>
+          {/* Pickup Locations Selector */}
+          <div className="form-group" style={{ marginBottom: '3rem', maxWidth: '500px' }}>
+            <label htmlFor="location-select" style={{ fontSize: '0.8rem', color: 'var(--color-bronze)' }}>
+              Select Location Action
+            </label>
+            <select
+              id="location-select"
+              className="form-select"
+              value={selectedLocationId}
+              onChange={handleSelectLocation}
+              style={{ marginTop: '0.5rem', border: '1px solid var(--color-bronze)' }}
+            >
+              <option value="">-- Choose an action --</option>
+              <option value="new">+ Add New Location</option>
+              <optgroup label="Edit Locations">
+                {locationsList.map((loc) => (
+                  <option key={loc.id} value={loc.id}>
+                    {loc.name} ({loc.active ? 'Active' : 'Inactive'})
+                  </option>
+                ))}
+              </optgroup>
+            </select>
+          </div>
+
+          <div className="admin-grid" style={{ opacity: isLocationFormEnabled ? 1 : 0.4, transition: 'opacity 0.3s' }}>
+            {/* Left Column: Location Form */}
+            <div>
+              <h2 className="subtitle-tag" style={{ marginBottom: '2rem' }}>
+                {selectedLocationId === 'new' ? 'Add New Location' : 'Edit Location'}
+              </h2>
+              <form onSubmit={handleSubmitLocation} className="editor-form">
+                <div className="form-group">
+                  <label htmlFor="locName">Location Name</label>
+                  <input
+                    id="locName"
+                    type="text"
+                    className="form-input"
+                    value={locationName}
+                    onChange={(e) => setLocationName(e.target.value)}
+                    placeholder="e.g. Downtown Store"
+                    disabled={!isLocationFormEnabled || isSubmitting}
+                  />
+                </div>
+
+                <div className="form-group">
+                  <label htmlFor="locAddress">Address</label>
+                  <input
+                    id="locAddress"
+                    type="text"
+                    className="form-input"
+                    value={locationAddress}
+                    onChange={(e) => setLocationAddress(e.target.value)}
+                    placeholder="e.g. 123 Main St, Lagos"
+                    disabled={!isLocationFormEnabled || isSubmitting}
+                  />
+                </div>
+
+                <div className="form-group">
+                  <label htmlFor="locHours">Opening Hours</label>
+                  <input
+                    id="locHours"
+                    type="text"
+                    className="form-input"
+                    value={locationOpeningHours}
+                    onChange={(e) => setLocationOpeningHours(e.target.value)}
+                    placeholder="e.g. Mon - Sat: 9:00 AM - 6:00 PM"
+                    disabled={!isLocationFormEnabled || isSubmitting}
+                  />
+                </div>
+
+                <div className="form-group">
+                  <label htmlFor="locLat">Latitude</label>
+                  <input
+                    id="locLat"
+                    type="number"
+                    step="0.00001"
+                    className="form-input"
+                    value={locationLat}
+                    onChange={(e) => setLocationLat(e.target.value)}
+                    placeholder="e.g. 6.5244"
+                    disabled={!isLocationFormEnabled || isSubmitting}
+                  />
+                </div>
+
+                <div className="form-group">
+                  <label htmlFor="locLng">Longitude</label>
+                  <input
+                    id="locLng"
+                    type="number"
+                    step="0.00001"
+                    className="form-input"
+                    value={locationLng}
+                    onChange={(e) => setLocationLng(e.target.value)}
+                    placeholder="e.g. 3.3792"
+                    disabled={!isLocationFormEnabled || isSubmitting}
+                  />
+                </div>
+
+                <div className="form-group" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                  <input
+                    id="locActive"
+                    type="checkbox"
+                    checked={locationActive}
+                    onChange={(e) => setLocationActive(e.target.checked)}
+                    disabled={!isLocationFormEnabled || isSubmitting}
+                    style={{ cursor: 'pointer', width: '18px', height: '18px' }}
+                  />
+                  <label htmlFor="locActive" style={{ margin: 0, cursor: 'pointer' }}>
+                    Active (show to public)
+                  </label>
+                </div>
+
+                <div className="admin-button-group">
+                  <button
+                    type="submit"
+                    className="publish-btn"
+                    disabled={!isLocationFormEnabled || isSubmitting}
+                  >
+                    {isSubmitting ? 'SAVING...' : 'SAVE LOCATION'}
+                  </button>
+                  {selectedLocationId !== '' && selectedLocationId !== 'new' && (
+                    <button
+                      type="button"
+                      className="delete-btn"
+                      onClick={handleDeleteLocation}
+                      disabled={isSubmitting}
+                    >
+                      DELETE
+                    </button>
+                  )}
+                </div>
+              </form>
+            </div>
+
+            {/* Right Column: Locations List & Reordering */}
+            <div>
+              <h2 className="subtitle-tag" style={{ marginBottom: '2rem' }}>
+                Manage Locations
+              </h2>
+
+              {locationsList.length === 0 ? (
+                <p style={{ color: 'var(--color-muted)' }}>No pickup locations yet. Create one to get started.</p>
+              ) : (
+                <div>
+                  {locationsList.map((location, idx) => (
+                    <div
+                      key={location.id}
+                      className="admin-article-item"
+                      onClick={() => {
+                        setSelectedLocationId(location.id);
+                        setFeedback({ message: '', type: '' });
+                        setLocationName(location.name);
+                        setLocationAddress(location.address);
+                        setLocationOpeningHours(location.openingHours || 'Mon - Sat: 9:00 AM - 6:00 PM');
+                        setLocationLat(location.latitude.toString());
+                        setLocationLng(location.longitude.toString());
+                        setLocationActive(location.active);
+                      }}
+                      style={{
+                        padding: '1rem',
+                        marginBottom: '0.5rem',
+                        borderLeft: selectedLocationId === location.id ? '3px solid var(--color-bronze)' : '3px solid transparent',
+                        cursor: 'pointer',
+                        backgroundColor: selectedLocationId === location.id ? '#fafafa' : 'white',
+                      }}
+                    >
+                      <p style={{ margin: '0 0 0.25rem 0', fontWeight: '600', fontSize: '0.95rem' }}>
+                        {location.name}
+                      </p>
+                      <p style={{ margin: '0 0 0.25rem 0', fontSize: '0.85rem', color: '#666' }}>
+                        {location.address}
+                      </p>
+                      <p style={{ margin: '0 0 0.5rem 0', fontSize: '0.8rem', color: 'var(--color-bronze)' }}>
+                        🕒 {location.openingHours || 'Mon - Sat: 9:00 AM - 6:00 PM'}
+                      </p>
+                      <p style={{ margin: '0 0 1rem 0', fontSize: '0.8rem', color: '#999' }}>
+                        {location.latitude.toFixed(4)}, {location.longitude.toFixed(4)}
+                      </p>
+                      <div style={{ display: 'flex', gap: '0.5rem' }}>
+                        <button
+                          type="button"
+                          className="admin-move-btn"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleMoveLocation(idx, 'up');
+                          }}
+                          disabled={idx === 0}
+                          style={{
+                            padding: '0.4rem 0.8rem',
+                            fontSize: '0.75rem',
+                            opacity: idx === 0 ? 0.5 : 1,
+                          }}
+                        >
+                          ↑
+                        </button>
+                        <button
+                          type="button"
+                          className="admin-move-btn"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleMoveLocation(idx, 'down');
+                          }}
+                          disabled={idx === locationsList.length - 1}
+                          style={{
+                            padding: '0.4rem 0.8rem',
+                            fontSize: '0.75rem',
+                            opacity: idx === locationsList.length - 1 ? 0.5 : 1,
+                          }}
+                        >
+                          ↓
+                        </button>
+                        <span style={{ fontSize: '0.85rem', color: 'var(--color-muted)', marginLeft: 'auto' }}>
+                          {location.active ? '✓ Active' : '○ Inactive'}
+                        </span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        </>
+      ) : activeTab === 'orders' ? (
+        <div>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2rem', flexWrap: 'wrap', gap: '1rem' }}>
+            <div>
+              <h2 className="subtitle-tag" style={{ margin: 0 }}>
+                Shop Orders ({ordersList.length})
+              </h2>
+              <p style={{ margin: '0.25rem 0 0 0', color: 'var(--color-muted)', fontSize: '0.85rem' }}>
+                Customer purchase records, selected pickup hubs, and email delivery statuses.
+              </p>
+            </div>
+
+            <div style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
+              <input
+                type="text"
+                placeholder="Search reference, email, product..."
+                value={orderSearchQuery}
+                onChange={(e) => setOrderSearchQuery(e.target.value)}
+                className="form-input"
+                style={{ width: '280px', padding: '0.5rem 0.8rem', fontSize: '0.85rem' }}
+              />
+              <button
+                type="button"
+                className="publish-btn"
+                onClick={fetchOrders}
+                disabled={isLoadingOrders}
+                style={{ padding: '0.5rem 1rem', fontSize: '0.8rem', whiteSpace: 'nowrap' }}
+              >
+                {isLoadingOrders ? 'REFRESHING...' : 'REFRESH'}
+              </button>
+            </div>
+          </div>
+
+          {feedback.message && (
+            <div className={`admin-feedback ${feedback.type}`} style={{ marginBottom: '1.5rem' }}>
+              {feedback.message}
+            </div>
+          )}
+
+          {isLoadingOrders && ordersList.length === 0 ? (
+            <p style={{ color: 'var(--color-muted)', textAlign: 'center', padding: '3rem 0' }}>Loading orders...</p>
+          ) : ordersList.filter((order) => {
+              if (!orderSearchQuery.trim()) return true;
+              const q = orderSearchQuery.toLowerCase();
+              return (
+                order.orderReference?.toLowerCase().includes(q) ||
+                order.email?.toLowerCase().includes(q) ||
+                order.productName?.toLowerCase().includes(q) ||
+                order.pickupLocationName?.toLowerCase().includes(q)
+              );
+            }).length === 0 ? (
+            <div style={{ textAlign: 'center', padding: '3rem 0', color: 'var(--color-muted)', border: '1px dashed var(--color-border)', borderRadius: '8px' }}>
+              <p style={{ margin: 0 }}>{orderSearchQuery ? 'No orders match your search criteria.' : 'No shop orders recorded yet.'}</p>
+            </div>
+          ) : (
+            <div style={{ overflowX: 'auto', border: '1px solid var(--color-border)', borderRadius: '8px', backgroundColor: 'var(--color-black-card)' }}>
+              <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.85rem' }}>
+                <thead>
+                  <tr style={{ borderBottom: '1px solid var(--color-border)', backgroundColor: 'rgba(255,255,255,0.03)' }}>
+                    <th style={{ padding: '1rem 1.2rem', color: 'var(--color-bronze)', fontWeight: 600, letterSpacing: '0.05em' }}>ORDER REF</th>
+                    <th style={{ padding: '1rem 1.2rem', color: 'var(--color-bronze)', fontWeight: 600, letterSpacing: '0.05em' }}>CUSTOMER EMAIL</th>
+                    <th style={{ padding: '1rem 1.2rem', color: 'var(--color-bronze)', fontWeight: 600, letterSpacing: '0.05em' }}>PRODUCT</th>
+                    <th style={{ padding: '1rem 1.2rem', color: 'var(--color-bronze)', fontWeight: 600, letterSpacing: '0.05em' }}>PRICE</th>
+                    <th style={{ padding: '1rem 1.2rem', color: 'var(--color-bronze)', fontWeight: 600, letterSpacing: '0.05em' }}>PICKUP LOCATION</th>
+                    <th style={{ padding: '1rem 1.2rem', color: 'var(--color-bronze)', fontWeight: 600, letterSpacing: '0.05em' }}>DATE</th>
+                    <th style={{ padding: '1rem 1.2rem', color: 'var(--color-bronze)', fontWeight: 600, letterSpacing: '0.05em' }}>STATUS</th>
+                    <th style={{ padding: '1rem 1.2rem', color: 'var(--color-bronze)', fontWeight: 600, letterSpacing: '0.05em' }}>EMAIL STATUS</th>
+                    <th style={{ padding: '1rem 1.2rem', color: 'var(--color-bronze)', fontWeight: 600, letterSpacing: '0.05em', textAlign: 'right' }}>ACTIONS</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {ordersList
+                    .filter((order) => {
+                      if (!orderSearchQuery.trim()) return true;
+                      const q = orderSearchQuery.toLowerCase();
+                      return (
+                        order.orderReference?.toLowerCase().includes(q) ||
+                        order.email?.toLowerCase().includes(q) ||
+                        order.productName?.toLowerCase().includes(q) ||
+                        order.pickupLocationName?.toLowerCase().includes(q)
+                      );
+                    })
+                    .map((order) => (
+                      <tr key={order.id} style={{ borderBottom: '1px solid var(--color-border)', transition: 'background 0.2s' }}>
+                        <td style={{ padding: '1rem 1.2rem', fontFamily: 'monospace', fontWeight: 700, color: 'var(--color-bronze)' }}>
+                          #{order.orderReference}
+                        </td>
+                        <td style={{ padding: '1rem 1.2rem', color: '#f5f5f5' }}>
+                          {order.email}
+                        </td>
+                        <td style={{ padding: '1rem 1.2rem', color: '#ddd' }}>
+                          {order.productName}
+                        </td>
+                        <td style={{ padding: '1rem 1.2rem', fontWeight: 600, color: '#fff', whiteSpace: 'nowrap' }}>
+                          ₦{Number(order.price).toLocaleString()}
+                        </td>
+                        <td style={{ padding: '1rem 1.2rem', color: 'var(--color-muted)' }}>
+                          <div style={{ fontWeight: 600, color: '#eee' }}>{order.pickupLocationName || 'N/A'}</div>
+                          {order.pickupLocationAddress && (
+                            <div style={{ fontSize: '0.75rem', color: '#888', marginTop: '2px', maxWidth: '200px' }}>
+                              {order.pickupLocationAddress}
+                            </div>
+                          )}
+                          {order.pickupLocationOpeningHours && (
+                            <div style={{ fontSize: '0.7rem', color: 'var(--color-bronze)', marginTop: '2px' }}>
+                              🕒 {order.pickupLocationOpeningHours}
+                            </div>
+                          )}
+                        </td>
+                        <td style={{ padding: '1rem 1.2rem', color: 'var(--color-muted)', whiteSpace: 'nowrap' }}>
+                          {new Date(order.createdAt).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}
+                        </td>
+                        <td style={{ padding: '1rem 1.2rem' }}>
+                          <span style={{
+                            padding: '0.25rem 0.6rem',
+                            borderRadius: '4px',
+                            fontSize: '0.75rem',
+                            fontWeight: 600,
+                            textTransform: 'uppercase',
+                            backgroundColor: order.status === 'paid' ? 'rgba(74, 222, 128, 0.15)' : 'rgba(250, 204, 21, 0.15)',
+                            color: order.status === 'paid' ? '#4ade80' : '#facc15',
+                            border: order.status === 'paid' ? '1px solid rgba(74, 222, 128, 0.3)' : '1px solid rgba(250, 204, 21, 0.3)',
+                          }}>
+                            {order.status}
+                          </span>
+                        </td>
+                        <td style={{ padding: '1rem 1.2rem' }}>
+                          <div>
+                            <span style={{
+                              padding: '0.25rem 0.6rem',
+                              borderRadius: '4px',
+                              fontSize: '0.75rem',
+                              fontWeight: 600,
+                              backgroundColor: order.emailStatus === 'sent' 
+                                ? 'rgba(74, 222, 128, 0.15)' 
+                                : order.emailStatus === 'failed' 
+                                ? 'rgba(239, 68, 68, 0.15)' 
+                                : 'rgba(156, 163, 175, 0.15)',
+                              color: order.emailStatus === 'sent' 
+                                ? '#4ade80' 
+                                : order.emailStatus === 'failed' 
+                                ? '#ef4444' 
+                                : '#9ca3af',
+                              border: order.emailStatus === 'sent' 
+                                ? '1px solid rgba(74, 222, 128, 0.3)' 
+                                : order.emailStatus === 'failed' 
+                                ? '1px solid rgba(239, 68, 68, 0.3)' 
+                                : '1px solid rgba(156, 163, 175, 0.3)',
+                            }}>
+                              {order.emailStatus === 'sent' ? '✓ Sent' : order.emailStatus === 'failed' ? '⚠ Failed' : 'Pending'}
+                            </span>
+                            {order.emailError && (
+                              <div style={{ fontSize: '0.7rem', color: '#ef4444', marginTop: '4px', maxWidth: '180px', wordBreak: 'break-word' }}>
+                                {order.emailError}
+                              </div>
+                            )}
+                          </div>
+                        </td>
+                        <td style={{ padding: '1rem 1.2rem', textAlign: 'right' }}>
+                          <button
+                            type="button"
+                            onClick={() => handleResendEmail(order.id)}
+                            disabled={resendingOrderId === order.id}
+                            style={{
+                              padding: '0.4rem 0.8rem',
+                              fontSize: '0.75rem',
+                              fontWeight: 600,
+                              backgroundColor: 'transparent',
+                              color: 'var(--color-bronze)',
+                              border: '1px solid var(--color-bronze)',
+                              borderRadius: '4px',
+                              cursor: resendingOrderId === order.id ? 'not-allowed' : 'pointer',
+                              whiteSpace: 'nowrap',
+                              transition: 'all 0.2s',
+                            }}
+                          >
+                            {resendingOrderId === order.id ? 'Sending...' : 'Resend Email'}
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
       ) : (
         <div className="admin-grid">
           {/* Left Column: Cover Fields */}

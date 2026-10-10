@@ -94,3 +94,39 @@ model Product {
   updatedAt   DateTime @updatedAt
 }
 
+model PickupLocation {
+  id           String   @id @default(uuid())
+  name         String
+  address      String
+  openingHours String   @default("Mon - Sat: 9:00 AM - 6:00 PM")
+  latitude     Float
+  longitude    Float
+  active       Boolean  @default(true)
+  order        Int      @default(0)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+}
+
+model ShopOrder {
+  id                         String   @id @default(uuid())
+  orderReference             String   @unique
+  email                      String
+  productId                  String?
+  productName                String
+  price                      Int
+  pickupLocationId           String?
+  pickupLocationName         String?
+  pickupLocationAddress      String?
+  pickupLocationOpeningHours String?
+  paystackReference          String?  @unique
+  status                     String   @default("pending") // "pending" | "paid" | "completed" | "cancelled"
+  emailStatus                String   @default("pending") // "pending" | "sent" | "failed"
+  emailError                 String?  @db.Text
+  createdAt                  DateTime @default(now())
+  updatedAt                  DateTime @updatedAt
+
+  @@index([email])
+  @@index([paystackReference])
+  @@index([orderReference])
+}
+

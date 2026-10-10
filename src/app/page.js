@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react';
 import Image from 'next/image';
+import Link from 'next/link';
 import Comments from '../components/Comments';
 
 export default function Home() {
@@ -474,7 +475,19 @@ export default function Home() {
               <>
                 <h2>Receive the Print &amp; Digital Editions</h2>
                 <p>
-                  Subscribe for ₦5,000 to receive quarterly physical issues of SLEEK directly to your door, along with full access to our digital premium archives and weekly digests.
+                  Subscribe for ₦3,500 to receive full access to our digital premium archives and weekly digests.{' '}
+                  <Link
+                    href="/shop"
+                    style={{
+                      color: 'var(--color-bronze, #ba9c87)',
+                      textDecoration: 'underline',
+                      textUnderlineOffset: '3px',
+                      fontWeight: '500',
+                      cursor: 'pointer',
+                    }}
+                  >
+                    Click here to shop sleek physical issues and pick up from a store around you with your sleek pass
+                  </Link>
                 </p>
 
                 <form className="subscribe-form" onSubmit={handleSubscribe}>

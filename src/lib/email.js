@@ -353,3 +353,272 @@ export async function sendNewArticleNotificationEmail(article, recipientEmails =
   console.log('[EMAIL] New article notifications successfully sent to all subscribers via Brevo API.');
   return true;
 }
+
+export async function sendOrderConfirmationEmail(order) {
+  const {
+    orderReference,
+    email,
+    productName,
+    price,
+    pickupLocationName,
+    pickupLocationAddress,
+    pickupLocationOpeningHours,
+  } = order;
+
+  if (!email) {
+    throw new Error('Recipient email is required.');
+  }
+
+  const formattedPrice = `₦${Number(price || 0).toLocaleString()}`;
+  const safeLocationName = pickupLocationName || 'Sleek Pickup Hub';
+  const safeLocationAddress = pickupLocationAddress || 'Selected Sleek Partner Store';
+  const safeOpeningHours = pickupLocationOpeningHours || 'Mon - Sat: 9:00 AM - 6:00 PM';
+  const directionsQuery = encodeURIComponent(`${safeLocationAddress} ${safeLocationName}`.trim());
+  const directionsUrl = `https://www.google.com/maps/search/?api=1&query=${directionsQuery}`;
+
+  const logMessage = `
+========================================
+[EMAIL LOG] Order Confirmation #${orderReference} for ${email}
+Product: ${productName}
+Price: ${formattedPrice}
+Pickup Location: ${safeLocationName}
+Address: ${safeLocationAddress}
+Opening Hours: ${safeOpeningHours}
+Directions: ${directionsUrl}
+Generated at: ${new Date().toISOString()}
+========================================
+`;
+  console.log(logMessage);
+  safeAppendEmailLog(logMessage);
+
+  const emailHtml = `
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Your SLEEK Order Confirmation #${escapeHtml(orderReference)}</title>
+</head>
+<body style="margin: 0; padding: 0; background-color: #0d0d0f; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; -webkit-font-smoothing: antialiased; color: #1a1a1a;">
+  <table role="presentation" width="100%" border="0" cellspacing="0" cellpadding="0" style="background-color: #0d0d0f; padding: 32px 12px;">
+    <tr>
+      <td align="center">
+        <!-- Main Email Container -->
+        <table role="presentation" width="100%" border="0" cellspacing="0" cellpadding="0" style="max-width: 580px; background-color: #ffffff; border-radius: 12px; overflow: hidden; border: 1px solid #2a2a2e; box-shadow: 0 10px 30px rgba(0,0,0,0.35);">
+          
+          <!-- Header Banner: Dark Chrome & Copper -->
+          <tr>
+            <td style="background: linear-gradient(135deg, #141417 0%, #1e1e24 100%); padding: 36px 32px 28px; text-align: center; border-bottom: 2px solid #ba9c87;">
+              <div style="font-size: 11px; letter-spacing: 6px; color: #ba9c87; font-weight: 700; text-transform: uppercase; margin-bottom: 8px;">
+                S L E E K
+              </div>
+              <h1 style="margin: 0; color: #f5f5f7; font-size: 22px; font-weight: 400; letter-spacing: 1px;">
+                Order Confirmation
+              </h1>
+              <div style="margin-top: 10px; display: inline-block; background-color: rgba(186, 156, 135, 0.15); border: 1px solid #ba9c87; border-radius: 4px; padding: 4px 12px;">
+                <span style="font-family: monospace; font-size: 13px; color: #ba9c87; font-weight: 700; letter-spacing: 2px;">
+                  #${escapeHtml(orderReference)}
+                </span>
+              </div>
+            </td>
+          </tr>
+
+          <!-- Body Content -->
+          <tr>
+            <td style="padding: 32px 32px 24px; background-color: #ffffff;">
+              <p style="margin: 0 0 16px 0; font-size: 15px; line-height: 1.6; color: #333333;">
+                Hello,
+              </p>
+              <p style="margin: 0 0 24px 0; font-size: 15px; line-height: 1.6; color: #444444;">
+                Thank you for your order. We’ve received your payment and your copy is confirmed. Below are your order and pickup details.
+              </p>
+
+              <!-- Order Summary Card (Chrome & Copper Accent) -->
+              <table role="presentation" width="100%" border="0" cellspacing="0" cellpadding="0" style="background-color: #f9f9fb; border: 1px solid #e5e5ea; border-left: 4px solid #ba9c87; border-radius: 6px; margin-bottom: 24px;">
+                <tr>
+                  <td style="padding: 18px 20px;">
+                    <div style="font-size: 11px; letter-spacing: 2px; color: #8e8e93; font-weight: 700; text-transform: uppercase; margin-bottom: 12px;">
+                      Order Summary
+                    </div>
+                    <table role="presentation" width="100%" border="0" cellspacing="0" cellpadding="0">
+                      <tr>
+                        <td style="padding: 6px 0; font-size: 14px; color: #666666;">Product:</td>
+                        <td style="padding: 6px 0; font-size: 14px; color: #111111; font-weight: 600; text-align: right;">${escapeHtml(productName)}</td>
+                      </tr>
+                      <tr>
+                        <td style="padding: 6px 0; font-size: 14px; color: #666666;">Price Paid:</td>
+                        <td style="padding: 6px 0; font-size: 14px; color: #111111; font-weight: 700; text-align: right;">${escapeHtml(formattedPrice)}</td>
+                      </tr>
+                      <tr>
+                        <td style="padding: 6px 0; font-size: 14px; color: #666666;">Order Reference:</td>
+                        <td style="padding: 6px 0; font-size: 13px; font-family: monospace; color: #ba9c87; font-weight: 700; text-align: right;">${escapeHtml(orderReference)}</td>
+                      </tr>
+                      <tr>
+                        <td style="padding: 6px 0; font-size: 14px; color: #666666;">Customer Email:</td>
+                        <td style="padding: 6px 0; font-size: 13px; color: #333333; text-align: right;">${escapeHtml(email)}</td>
+                      </tr>
+                    </table>
+                  </td>
+                </tr>
+              </table>
+
+              <!-- Pickup Location Card -->
+              <table role="presentation" width="100%" border="0" cellspacing="0" cellpadding="0" style="background-color: #fdfbf9; border: 1px solid #e8dfd8; border-radius: 8px; margin-bottom: 28px;">
+                <tr>
+                  <td style="padding: 20px;">
+                    <div style="font-size: 11px; letter-spacing: 2px; color: #ba9c87; font-weight: 700; text-transform: uppercase; margin-bottom: 8px;">
+                      Selected Pickup Location
+                    </div>
+                    <h3 style="margin: 0 0 6px 0; font-size: 16px; color: #1c1c1e; font-weight: 600;">
+                      ${escapeHtml(safeLocationName)}
+                    </h3>
+                    <p style="margin: 0 0 10px 0; font-size: 14px; color: #555555; line-height: 1.5;">
+                      ${escapeHtml(safeLocationAddress)}
+                    </p>
+                    <p style="margin: 0 0 16px 0; font-size: 13px; color: #777777;">
+                      <strong style="color: #333333;">Hours:</strong> ${escapeHtml(safeOpeningHours)}
+                    </p>
+                    <table role="presentation" border="0" cellspacing="0" cellpadding="0">
+                      <tr>
+                        <td style="background-color: #ba9c87; border-radius: 4px; text-align: center;">
+                          <a href="${directionsUrl}" target="_blank" rel="noopener noreferrer" style="display: inline-block; padding: 10px 20px; font-size: 13px; font-weight: 600; color: #ffffff; text-decoration: none; letter-spacing: 0.5px;">
+                            Get Directions &rarr;
+                          </a>
+                        </td>
+                      </tr>
+                    </table>
+                  </td>
+                </tr>
+              </table>
+
+              <p style="margin: 0; font-size: 13px; line-height: 1.6; color: #777777;">
+                Please present this email or order reference (<strong>#${escapeHtml(orderReference)}</strong>) when picking up your order.
+              </p>
+            </td>
+          </tr>
+
+          <!-- Footer -->
+          <tr>
+            <td style="padding: 20px 32px 28px; background-color: #f7f7f9; border-top: 1px solid #e5e5ea; text-align: center;">
+              <p style="margin: 0 0 6px 0; font-size: 12px; color: #8e8e93; letter-spacing: 2px; text-transform: uppercase; font-weight: 600;">
+                SLEEK MAGAZINE
+              </p>
+              <p style="margin: 0; font-size: 11px; color: #aeaeb2;">
+                This email was sent regarding your recent purchase from Sleek.
+              </p>
+            </td>
+          </tr>
+
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>
+  `;
+
+  const textContent = `SLEEK - ORDER CONFIRMATION
+Order Reference: #${orderReference}
+
+Hello,
+
+Thank you for your order. We've received your payment and your copy is confirmed.
+
+ORDER SUMMARY
+Product: ${productName}
+Price Paid: ${formattedPrice}
+Order Reference: #${orderReference}
+Customer Email: ${email}
+
+PICKUP LOCATION
+${safeLocationName}
+${safeLocationAddress}
+Opening Hours: ${safeOpeningHours}
+Get Directions: ${directionsUrl}
+
+Please present your order reference (#${orderReference}) when picking up your order.
+
+Sleek Magazine
+`;
+
+  const host = getEnvVar('BREVO_SMTP_HOST', 'BREVO_HOST') || 'smtp-relay.brevo.com';
+  const port = parseInt(getEnvVar('BREVO_SMTP_PORT', 'BREVO_PORT') || '587', 10);
+  const smtpUser = getEnvVar('BREVO_SMTP_USER', 'BREVO_USER', 'BREVO_LOGIN');
+  const smtpPass = getEnvVar('BREVO_SMTP_PASS', 'BREVO_SMTP_KEY', 'BREVO_SMTP_PASSWORD', 'BREVO_PASSWORD');
+  const brevoApiKey = getEnvVar('BREVO_API_KEY', 'BREVO_KEY', 'SENDINBLUE_API_KEY');
+  const senderEmail = getEnvVar('BREVO_FROM_EMAIL', 'BREVO_EMAIL_FROM') || smtpUser || 'thesleekmagazine@gmail.com';
+
+  const brevoCredentialIssue = getBrevoCredentialIssue({ smtpUser, smtpPass, brevoApiKey });
+  if (brevoCredentialIssue) {
+    console.warn('[EMAIL] Brevo credentials issue for order confirmation:', brevoCredentialIssue);
+  }
+
+  // Attempt 1: Brevo REST API
+  if (brevoApiKey && !brevoApiKey.includes('your-brevo')) {
+    try {
+      const brevoResponse = await fetch('https://api.brevo.com/v3/smtp/email', {
+        method: 'POST',
+        headers: {
+          'api-key': brevoApiKey,
+          'Content-Type': 'application/json',
+          'Accept': 'application/json',
+        },
+        body: JSON.stringify({
+          sender: {
+            name: 'SLEEK Magazine',
+            email: senderEmail,
+          },
+          to: [{ email }],
+          subject: `Your SLEEK Order Confirmation #${orderReference}`,
+          htmlContent: emailHtml,
+          textContent,
+        }),
+      });
+
+      const brevoData = await brevoResponse.json();
+      if (brevoResponse.ok) {
+        console.log('[EMAIL] Order confirmation successfully sent via Brevo API. Message ID:', brevoData.messageId);
+        return { ok: true, messageId: brevoData.messageId };
+      }
+
+      console.warn('[EMAIL] Brevo REST API returned non-OK response:', brevoData);
+      throw new Error(brevoData.message || 'Brevo API error');
+    } catch (apiErr) {
+      console.warn('[EMAIL] Brevo REST API failed for order confirmation, trying SMTP transport:', apiErr.message);
+    }
+  }
+
+  // Attempt 2: Nodemailer SMTP
+  if (smtpUser && smtpPass && !smtpPass.includes('your-brevo')) {
+    try {
+      const nodemailer = require('nodemailer');
+      const transporter = nodemailer.createTransport({
+        host,
+        port,
+        secure: port === 465,
+        auth: {
+          user: smtpUser,
+          pass: smtpPass,
+        },
+      });
+
+      const info = await transporter.sendMail({
+        from: `"SLEEK Magazine" <${senderEmail}>`,
+        to: email,
+        subject: `Your SLEEK Order Confirmation #${orderReference}`,
+        text: textContent,
+        html: emailHtml,
+      });
+
+      console.log('[EMAIL] Order confirmation successfully sent via SMTP. Message ID:', info.messageId);
+      return { ok: true, messageId: info.messageId };
+    } catch (smtpErr) {
+      console.error('[EMAIL ERROR] Failed to send order confirmation via SMTP:', smtpErr.message || smtpErr);
+      throw new Error(smtpErr.message || 'SMTP delivery failed');
+    }
+  }
+
+  // If no credentials configured (dev fallback)
+  console.log('[EMAIL] Brevo credentials not configured. Order confirmation logged to sent_emails.txt.');
+  return { ok: true, messageId: 'logged-to-file' };
+}

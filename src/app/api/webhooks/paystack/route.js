@@ -1,7 +1,8 @@
 import { NextResponse } from 'next/server';
 import crypto from 'crypto';
 import prisma from '../../../../lib/prisma';
-import { sendSubscriptionConfirmationEmail } from '../../../../lib/email';
+import { sendSubscriptionConfirmationEmail, sendOrderConfirmationEmail } from '../../../../lib/email';
+import { generateOrderReference } from '../../../../lib/orderReference';
 
 export async function POST(req) {
   try {
@@ -36,31 +37,29 @@ export async function POST(req) {
     const payload = JSON.parse(rawBody);
     console.log('[WEBHOOK] Received event from Paystack:', payload.event);
 
-    if (payload.event === 'charge.success') {
-      const metadata = payload.data.metadata;
-      
-      if (metadata && metadata.payment_type === 'subscription') {
-        const email = payload.data.customer.email;
-        const reference = payload.data.reference;
-        const customerId = String(payload.data.customer.id || '');
+    // Verify event is successful charge
+    if (payload.event === 'charge.success' && payload.data?.status === 'success') {
+      const metadata = payload.data?.metadata || {};
+      const reference = payload.data?.reference;
+      const customerEmail = payload.data?.customer?.email || metadata.email;
 
-        console.log(`[WEBHOOK] Activating subscriber: ${email}`);
+      // 1. Subscription Flow
+      if (metadata.payment_type === 'subscription') {
+        const customerId = String(payload.data?.customer?.id || '');
+        console.log(`[WEBHOOK] Activating subscriber: ${customerEmail}`);
 
-        // Check prior status so we only send the confirmation email on a genuine
-        // new activation, not on every webhook retry Paystack sends for the same event.
-        const existingSubscriber = await prisma.subscriber.findUnique({ where: { email } });
+        const existingSubscriber = await prisma.subscriber.findUnique({ where: { email: customerEmail } });
         const wasAlreadyActive = existingSubscriber?.status === 'active';
 
-        // Upsert subscriber to active
         await prisma.subscriber.upsert({
-          where: { email },
+          where: { email: customerEmail },
           update: {
             status: 'active',
             paystackCustomerId: customerId,
             paystackReference: reference
           },
           create: {
-            email,
+            email: customerEmail,
             status: 'active',
             paystackCustomerId: customerId,
             paystackReference: reference
@@ -69,13 +68,151 @@ export async function POST(req) {
 
         if (!wasAlreadyActive) {
           try {
-            await sendSubscriptionConfirmationEmail(email);
+            await sendSubscriptionConfirmationEmail(customerEmail);
           } catch (emailErr) {
             console.error('[WEBHOOK] Failed to send subscription confirmation email:', emailErr);
           }
         }
+      } 
+      // 2. Shop Order Flow
+      else if (metadata.payment_type === 'shop_order' || metadata.productId || metadata.orderReference) {
+        console.log(`[WEBHOOK] Processing shop order for: ${customerEmail}, Paystack Ref: ${reference}`);
+
+        // Idempotency check: Look for existing order with this paystack reference
+        let existingOrder = null;
+        if (reference) {
+          existingOrder = await prisma.shopOrder.findUnique({
+            where: { paystackReference: reference },
+          });
+        }
+
+        // If not found by paystackReference, check by orderReference from metadata
+        if (!existingOrder && metadata.orderReference) {
+          existingOrder = await prisma.shopOrder.findUnique({
+            where: { orderReference: metadata.orderReference },
+          });
+        }
+
+        // If order was already marked paid or completed, do not duplicate order or emails
+        if (existingOrder && (existingOrder.status === 'paid' || existingOrder.status === 'completed')) {
+          console.log(`[WEBHOOK] Order #${existingOrder.orderReference} is already processed (${existingOrder.status}). Skipping duplicate execution.`);
+          return NextResponse.json({ status: 'ok', message: 'Order already processed' });
+        }
+
+        // Resolve pickup location details
+        let pickupLocName = metadata.pickupLocationName || existingOrder?.pickupLocationName || null;
+        let pickupLocAddress = metadata.pickupLocationAddress || existingOrder?.pickupLocationAddress || null;
+        let pickupLocHours = metadata.pickupLocationOpeningHours || existingOrder?.pickupLocationOpeningHours || null;
+        const pickupLocId = metadata.pickupLocationId || existingOrder?.pickupLocationId || null;
+
+        if (pickupLocId && (!pickupLocName || !pickupLocAddress || !pickupLocHours)) {
+          try {
+            const locRecord = await prisma.pickupLocation.findUnique({
+              where: { id: pickupLocId },
+            });
+            if (locRecord) {
+              pickupLocName = pickupLocName || locRecord.name;
+              pickupLocAddress = pickupLocAddress || locRecord.address;
+              pickupLocHours = pickupLocHours || locRecord.openingHours;
+            }
+          } catch (locErr) {
+            console.warn('[WEBHOOK] Could not fetch pickup location record:', locErr);
+          }
+        }
+
+        const priceInNaira = metadata.price 
+          ? parseInt(metadata.price, 10) 
+          : Math.round((payload.data.amount || 0) / 100);
+
+        const productName = metadata.productName || existingOrder?.productName || 'SLEEK Magazine Physical Copy';
+        const productId = metadata.productId || existingOrder?.productId || null;
+        const orderRef = existingOrder?.orderReference || metadata.orderReference || generateOrderReference(10);
+
+        let orderRecord;
+
+        if (existingOrder) {
+          orderRecord = await prisma.shopOrder.update({
+            where: { id: existingOrder.id },
+            data: {
+              status: 'paid',
+              paystackReference: reference,
+              productName,
+              price: priceInNaira,
+              pickupLocationId: pickupLocId,
+              pickupLocationName: pickupLocName,
+              pickupLocationAddress: pickupLocAddress,
+              pickupLocationOpeningHours: pickupLocHours,
+            },
+          });
+        } else {
+          orderRecord = await prisma.shopOrder.create({
+            data: {
+              orderReference: orderRef,
+              email: customerEmail,
+              productId,
+              productName,
+              price: priceInNaira,
+              pickupLocationId: pickupLocId,
+              pickupLocationName: pickupLocName,
+              pickupLocationAddress: pickupLocAddress,
+              pickupLocationOpeningHours: pickupLocHours,
+              paystackReference: reference,
+              status: 'paid',
+              emailStatus: 'pending',
+            },
+          });
+        }
+
+        // Decrement product inventory if valid productId
+        if (productId) {
+          try {
+            await prisma.product.updateMany({
+              where: { id: productId, stock: { gt: 0 } },
+              data: { stock: { decrement: 1 } },
+            });
+          } catch (stockErr) {
+            console.error('[WEBHOOK] Failed to update product stock:', stockErr);
+          }
+        }
+
+        // Send confirmation email if not yet sent
+        if (orderRecord.emailStatus !== 'sent') {
+          let emailStatus = 'pending';
+          let emailError = null;
+
+          try {
+            const emailRes = await sendOrderConfirmationEmail({
+              orderReference: orderRecord.orderReference,
+              email: orderRecord.email,
+              productName: orderRecord.productName,
+              price: orderRecord.price,
+              pickupLocationName: orderRecord.pickupLocationName,
+              pickupLocationAddress: orderRecord.pickupLocationAddress,
+              pickupLocationOpeningHours: orderRecord.pickupLocationOpeningHours,
+            });
+
+            emailStatus = emailRes?.ok ? 'sent' : 'failed';
+          } catch (emailErr) {
+            console.error('[WEBHOOK ERROR] Failed to send order confirmation email:', emailErr);
+            emailStatus = 'failed';
+            emailError = emailErr?.message || String(emailErr);
+          }
+
+          // Save email delivery state and any logged failure
+          await prisma.shopOrder.update({
+            where: { id: orderRecord.id },
+            data: {
+              emailStatus,
+              emailError,
+            },
+          });
+
+          console.log(`[WEBHOOK] Order #${orderRecord.orderReference} fulfilled successfully. Email status: ${emailStatus}`);
+        } else {
+          console.log(`[WEBHOOK] Confirmation email already sent for order #${orderRecord.orderReference}.`);
+        }
       } else {
-        console.log('[WEBHOOK] Non-subscription payment success event ignored.', metadata);
+        console.log('[WEBHOOK] Unrecognized charge metadata type. Event acknowledged.', metadata);
       }
     }
 
