@@ -12,7 +12,7 @@ export default function Navbar() {
   const [isSubscriber, setIsSubscriber] = useState(false);
 
   // Hide the global navigation bar on admin or login routes
-  if (pathname.startsWith('/admin') || pathname.startsWith('/shopadmin') || pathname.startsWith('/login')) {
+  if (pathname.startsWith('/admin') || pathname.startsWith('/login')) {
     return null;
   }
 

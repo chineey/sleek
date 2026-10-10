@@ -34,7 +34,7 @@ export default function Admin() {
   const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
 
   // Cover Settings states
-  const [activeTab, setActiveTab] = useState('articles'); // 'articles' | 'cover' | 'locations' | 'orders'
+  const [activeTab, setActiveTab] = useState('articles'); // 'articles' | 'products' | 'orders' | 'locations' | 'cover'
   const [coverTitle, setCoverTitle] = useState('');
   const [coverIssue, setCoverIssue] = useState('');
   const [coverLabel, setCoverLabel] = useState('');
@@ -42,6 +42,22 @@ export default function Admin() {
   const [coverUrl, setCoverUrl] = useState('');
   const [coverSocial, setCoverSocial] = useState('');
   const [coverImage, setCoverImage] = useState('');
+
+  // Shop Products states
+  const defaultProductImage = 'https://images.unsplash.com/photo-1521572267360-ee0c2909d518?q=80&w=1200&auto=format&fit=crop';
+  const [productsList, setProductsList] = useState([]);
+  const [selectedProductId, setSelectedProductId] = useState('');
+  const [productForm, setProductForm] = useState({
+    id: '',
+    name: '',
+    category: 'Accessories',
+    description: '',
+    image: defaultProductImage,
+    price: '0',
+    stock: '0',
+    active: true,
+  });
+  const [isLoadingProducts, setIsLoadingProducts] = useState(false);
 
   // Pickup Locations states
   const [locationsList, setLocationsList] = useState([]);
@@ -130,10 +146,11 @@ export default function Admin() {
     }
   }, [status, router]);
 
-  // Fetch articles list on mount & login success
+  // Fetch initial data on mount & login success
   useEffect(() => {
     if (status === 'authenticated') {
       fetchArticles();
+      fetchProducts();
       fetchPickupLocations();
       fetchOrders();
     }
@@ -150,6 +167,152 @@ export default function Admin() {
       }
     } catch (err) {
       console.error('Failed to fetch articles:', err);
+    }
+  };
+
+  // Fetch shop products
+  const fetchProducts = async () => {
+    setIsLoadingProducts(true);
+    try {
+      const res = await fetch('/api/products');
+      if (res.ok) {
+        const data = await res.json();
+        setProductsList(data);
+      }
+    } catch (err) {
+      console.error('Failed to fetch products:', err);
+    } finally {
+      setIsLoadingProducts(false);
+    }
+  };
+
+  const updateProductField = (field, value) => {
+    setProductForm((current) => ({ ...current, [field]: value }));
+  };
+
+  const resetProductForm = () => {
+    setSelectedProductId('');
+    setProductForm({
+      id: '',
+      name: '',
+      category: 'Accessories',
+      description: '',
+      image: defaultProductImage,
+      price: '0',
+      stock: '0',
+      active: true,
+    });
+  };
+
+  const handleSelectProduct = (e) => {
+    const val = e.target.value;
+    setSelectedProductId(val);
+    setFeedback({ message: '', type: '' });
+
+    if (val === 'new' || !val || val === '') {
+      resetProductForm();
+      if (val === 'new') setSelectedProductId('new');
+      return;
+    }
+
+    const selected = productsList.find((p) => p.id === val);
+    if (selected) {
+      setProductForm({
+        id: selected.id,
+        name: selected.name,
+        category: selected.category,
+        description: selected.description,
+        image: selected.image || defaultProductImage,
+        price: String(selected.price),
+        stock: String(selected.stock),
+        active: selected.active,
+      });
+    }
+  };
+
+  const handleEditProduct = (product) => {
+    setSelectedProductId(product.id);
+    setProductForm({
+      id: product.id,
+      name: product.name,
+      category: product.category,
+      description: product.description,
+      image: product.image || defaultProductImage,
+      price: String(product.price),
+      stock: String(product.stock),
+      active: product.active,
+    });
+    setFeedback({ message: '', type: '' });
+  };
+
+  const handleProductSubmit = async (e) => {
+    e.preventDefault();
+    if (!productForm.name || !productForm.description) {
+      setFeedback({ message: 'Product name and description are required.', type: 'error' });
+      return;
+    }
+
+    setIsSubmitting(true);
+    setFeedback({ message: '', type: '' });
+
+    try {
+      const payload = {
+        ...productForm,
+        price: Number(productForm.price),
+        stock: Number(productForm.stock),
+      };
+
+      const method = productForm.id ? 'PUT' : 'POST';
+      const res = await fetch('/api/products', {
+        method,
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.error || 'Failed to save product.');
+      }
+
+      setFeedback({
+        message: productForm.id ? 'Product updated successfully.' : 'Product created successfully.',
+        type: 'success',
+      });
+      resetProductForm();
+      await fetchProducts();
+    } catch (err) {
+      setFeedback({ message: err.message || 'Error saving product.', type: 'error' });
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleDeleteProduct = async (idToDelete) => {
+    const targetId = idToDelete || productForm.id;
+    if (!targetId) return;
+
+    if (!window.confirm('Are you sure you want to delete this product?')) return;
+
+    setIsSubmitting(true);
+    setFeedback({ message: '', type: '' });
+
+    try {
+      const res = await fetch(`/api/products?id=${encodeURIComponent(targetId)}`, {
+        method: 'DELETE',
+      });
+
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.error || 'Failed to delete product.');
+      }
+
+      setFeedback({ message: 'Product deleted successfully.', type: 'success' });
+      if (productForm.id === targetId) resetProductForm();
+      await fetchProducts();
+    } catch (err) {
+      setFeedback({ message: err.message || 'Error deleting product.', type: 'error' });
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -351,9 +514,11 @@ export default function Admin() {
     const displayW = nw * fitRatio;
     const displayH = nh * fitRatio;
 
-    const canvas = document.createElement('canvas');
-    const canvasWidth = activeTab === 'cover' ? 1600 : 1200;
-    const canvasHeight = activeTab === 'cover' ? 1000 : 900;
+    const isProductTab = activeTab === 'products';
+    const isCoverTab = activeTab === 'cover';
+
+    const canvasWidth = isCoverTab ? 1600 : isProductTab ? 900 : 1200;
+    const canvasHeight = isCoverTab ? 1000 : isProductTab ? 1600 : 900;
     canvas.width = canvasWidth;
     canvas.height = canvasHeight;
     const ctx = canvas.getContext('2d');
@@ -403,6 +568,8 @@ export default function Admin() {
           if (res.ok) {
             if (activeTab === 'cover') {
               setCoverImage(data.url);
+            } else if (activeTab === 'products') {
+              setProductForm((prev) => ({ ...prev, image: data.url }));
             } else {
               setImageUrl(data.url);
             }
@@ -846,7 +1013,7 @@ export default function Admin() {
       </header>
 
       {/* Tabs */}
-      <div style={{ display: 'flex', gap: '2rem', borderBottom: '1px solid var(--color-border)', marginBottom: '3rem' }}>
+      <div style={{ display: 'flex', gap: '2rem', borderBottom: '1px solid var(--color-border)', marginBottom: '3rem', flexWrap: 'wrap' }}>
         <button
           type="button"
           onClick={() => { setActiveTab('articles'); setFeedback({ message: '', type: '' }); }}
@@ -867,21 +1034,39 @@ export default function Admin() {
         </button>
         <button
           type="button"
-          onClick={() => { setActiveTab('cover'); setFeedback({ message: '', type: '' }); }}
+          onClick={() => { setActiveTab('products'); fetchProducts(); setFeedback({ message: '', type: '' }); }}
           style={{
             background: 'none',
             border: 'none',
-            color: activeTab === 'cover' ? 'var(--color-bronze)' : 'var(--color-muted)',
+            color: activeTab === 'products' ? 'var(--color-bronze)' : 'var(--color-muted)',
             fontSize: '0.85rem',
             fontWeight: 600,
             letterSpacing: '0.15em',
             padding: '1rem 0',
-            borderBottom: activeTab === 'cover' ? '2px solid var(--color-bronze)' : '2px solid transparent',
+            borderBottom: activeTab === 'products' ? '2px solid var(--color-bronze)' : '2px solid transparent',
             cursor: 'pointer',
             textTransform: 'uppercase'
           }}
         >
-          Cover Settings
+          Shop Products
+        </button>
+        <button
+          type="button"
+          onClick={() => { setActiveTab('orders'); fetchOrders(); setFeedback({ message: '', type: '' }); }}
+          style={{
+            background: 'none',
+            border: 'none',
+            color: activeTab === 'orders' ? 'var(--color-bronze)' : 'var(--color-muted)',
+            fontSize: '0.85rem',
+            fontWeight: 600,
+            letterSpacing: '0.15em',
+            padding: '1rem 0',
+            borderBottom: activeTab === 'orders' ? '2px solid var(--color-bronze)' : '2px solid transparent',
+            cursor: 'pointer',
+            textTransform: 'uppercase'
+          }}
+        >
+          Shop Orders
         </button>
         <button
           type="button"
@@ -903,21 +1088,21 @@ export default function Admin() {
         </button>
         <button
           type="button"
-          onClick={() => { setActiveTab('orders'); fetchOrders(); setFeedback({ message: '', type: '' }); }}
+          onClick={() => { setActiveTab('cover'); setFeedback({ message: '', type: '' }); }}
           style={{
             background: 'none',
             border: 'none',
-            color: activeTab === 'orders' ? 'var(--color-bronze)' : 'var(--color-muted)',
+            color: activeTab === 'cover' ? 'var(--color-bronze)' : 'var(--color-muted)',
             fontSize: '0.85rem',
             fontWeight: 600,
             letterSpacing: '0.15em',
             padding: '1rem 0',
-            borderBottom: activeTab === 'orders' ? '2px solid var(--color-bronze)' : '2px solid transparent',
+            borderBottom: activeTab === 'cover' ? '2px solid var(--color-bronze)' : '2px solid transparent',
             cursor: 'pointer',
             textTransform: 'uppercase'
           }}
         >
-          Shop Orders
+          Cover Settings
         </button>
       </div>
 
@@ -1639,6 +1824,299 @@ export default function Admin() {
             </div>
           )}
         </div>
+      ) : activeTab === 'products' ? (
+        <>
+          {/* Products Selector */}
+          <div className="form-group" style={{ marginBottom: '3rem', maxWidth: '500px' }}>
+            <label htmlFor="product-select" style={{ fontSize: '0.8rem', color: 'var(--color-bronze)' }}>
+              Select Product Action
+            </label>
+            <select
+              id="product-select"
+              className="form-select"
+              value={selectedProductId}
+              onChange={handleSelectProduct}
+              style={{ marginTop: '0.5rem', border: '1px solid var(--color-bronze)' }}
+            >
+              <option value="">-- Choose an action --</option>
+              <option value="new">+ Create New Product</option>
+              <optgroup label="Edit Existing Products">
+                {productsList.map((prod) => (
+                  <option key={prod.id} value={prod.id}>
+                    {prod.name} (₦{Number(prod.price).toLocaleString()} • {prod.stock} in stock)
+                  </option>
+                ))}
+              </optgroup>
+            </select>
+          </div>
+
+          <div className="admin-grid" style={{ opacity: selectedProductId ? 1 : 0.4, transition: 'opacity 0.3s' }}>
+            {/* Left Column: Product Form */}
+            <div>
+              <h2 className="subtitle-tag" style={{ marginBottom: '2rem' }}>
+                {selectedProductId === 'new' ? 'Create Product Details' : 'Edit Product Details'}
+              </h2>
+              <form onSubmit={handleProductSubmit} className="editor-form">
+                <div className="form-group">
+                  <label htmlFor="productName">Product Name</label>
+                  <input
+                    id="productName"
+                    type="text"
+                    className="form-input"
+                    value={productForm.name}
+                    onChange={(e) => updateProductField('name', e.target.value)}
+                    required
+                    disabled={!selectedProductId || isSubmitting}
+                    placeholder="e.g. SLEEK Issue 01 - Physical Copy"
+                  />
+                </div>
+
+                <div className="form-group">
+                  <label htmlFor="productCategory">Category</label>
+                  <select
+                    id="productCategory"
+                    className="form-select"
+                    value={productForm.category}
+                    onChange={(e) => updateProductField('category', e.target.value)}
+                    disabled={!selectedProductId || isSubmitting}
+                  >
+                    <option value="Accessories">Accessories</option>
+                    <option value="Apparel">Apparel</option>
+                    <option value="Beauty">Beauty</option>
+                    <option value="Home">Home</option>
+                    <option value="Edition">Edition</option>
+                  </select>
+                </div>
+
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+                  <div className="form-group">
+                    <label htmlFor="productPrice">Price (NGN)</label>
+                    <input
+                      id="productPrice"
+                      type="number"
+                      min="0"
+                      className="form-input"
+                      value={productForm.price}
+                      onChange={(e) => updateProductField('price', e.target.value)}
+                      required
+                      disabled={!selectedProductId || isSubmitting}
+                    />
+                  </div>
+
+                  <div className="form-group">
+                    <label htmlFor="productStock">Stock Quantity</label>
+                    <input
+                      id="productStock"
+                      type="number"
+                      min="0"
+                      className="form-input"
+                      value={productForm.stock}
+                      onChange={(e) => updateProductField('stock', e.target.value)}
+                      required
+                      disabled={!selectedProductId || isSubmitting}
+                    />
+                  </div>
+                </div>
+
+                <div className="form-group">
+                  <label htmlFor="productDescription">Description</label>
+                  <textarea
+                    id="productDescription"
+                    className="form-textarea"
+                    rows="4"
+                    value={productForm.description}
+                    onChange={(e) => updateProductField('description', e.target.value)}
+                    required
+                    disabled={!selectedProductId || isSubmitting}
+                    placeholder="Product details, material, and edition highlights..."
+                  />
+                </div>
+
+                <div className="form-group" style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                  <input
+                    id="productActive"
+                    type="checkbox"
+                    checked={productForm.active}
+                    onChange={(e) => updateProductField('active', e.target.checked)}
+                    disabled={!selectedProductId || isSubmitting}
+                    style={{ cursor: 'pointer', width: '18px', height: '18px' }}
+                  />
+                  <label htmlFor="productActive" style={{ margin: 0, cursor: 'pointer', color: 'var(--color-ivory)' }}>
+                    Product is live and visible in the shop
+                  </label>
+                </div>
+
+                {/* Product Photo Upload Section */}
+                <div className="form-group" style={{ marginTop: '1.5rem' }}>
+                  <label>Product Photo (9:16 Portrait)</label>
+                  <label
+                    className="upload-zone"
+                    style={{
+                      cursor: selectedProductId && !isSubmitting ? 'pointer' : 'not-allowed',
+                      opacity: selectedProductId ? 1 : 0.6,
+                    }}
+                  >
+                    <input
+                      id="upload-product-photo-input"
+                      type="file"
+                      accept="image/*"
+                      onChange={handleImageUploadSelect}
+                      style={{ display: 'none' }}
+                      disabled={!selectedProductId || isUploading || isSubmitting}
+                    />
+                    <svg
+                      width="32"
+                      height="32"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="var(--color-bronze)"
+                      strokeWidth="1.5"
+                      style={{ marginBottom: '0.5rem' }}
+                    >
+                      <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M17 8l-5-5-5 5M12 3v12" />
+                    </svg>
+                    <span className="upload-text">
+                      {isUploading
+                        ? 'Uploading to Cloudinary...'
+                        : productForm.image && productForm.image !== defaultProductImage
+                        ? 'Click to change product photo'
+                        : 'Click to upload product photo (9:16 Portrait)'}
+                    </span>
+                  </label>
+
+                  {productForm.image && productForm.image !== defaultProductImage && (
+                    <div className="form-group" style={{ marginTop: '1.5rem' }}>
+                      <label style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <span>Photo Preview (9:16)</span>
+                        <button
+                          type="button"
+                          onClick={() => document.getElementById('upload-product-photo-input').click()}
+                          style={{
+                            background: 'none',
+                            border: 'none',
+                            color: 'var(--color-bronze)',
+                            fontSize: '0.75rem',
+                            cursor: 'pointer',
+                            textDecoration: 'underline',
+                            padding: 0,
+                          }}
+                        >
+                          Change Photo
+                        </button>
+                      </label>
+                      <div className="upload-preview" style={{ aspectRatio: '9/16', maxWidth: '240px' }}>
+                        <img src={productForm.image} alt="Product preview" />
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                <div className="admin-button-group" style={{ marginTop: '2rem' }}>
+                  <button
+                    type="submit"
+                    className="publish-btn"
+                    disabled={!selectedProductId || isSubmitting || isUploading}
+                  >
+                    {isSubmitting ? 'SAVING...' : productForm.id ? 'UPDATE PRODUCT' : 'CREATE PRODUCT'}
+                  </button>
+                  {productForm.id && (
+                    <button
+                      type="button"
+                      className="delete-btn"
+                      onClick={() => handleDeleteProduct(productForm.id)}
+                      disabled={isSubmitting}
+                    >
+                      DELETE
+                    </button>
+                  )}
+                </div>
+              </form>
+            </div>
+
+            {/* Right Column: Products List */}
+            <div>
+              <h2 className="subtitle-tag" style={{ marginBottom: '2rem' }}>
+                Manage Products ({productsList.length})
+              </h2>
+
+              {productsList.length === 0 ? (
+                <p style={{ color: 'var(--color-muted)' }}>No products in shop yet. Create one to get started.</p>
+              ) : (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+                  {productsList.map((product) => (
+                    <div
+                      key={product.id}
+                      className="admin-article-item"
+                      onClick={() => handleEditProduct(product)}
+                      style={{
+                        padding: '1rem',
+                        borderLeft: selectedProductId === product.id ? '3px solid var(--color-bronze)' : '3px solid transparent',
+                        cursor: 'pointer',
+                        backgroundColor: selectedProductId === product.id ? 'rgba(186, 156, 135, 0.08)' : 'var(--color-black-card)',
+                        display: 'flex',
+                        gap: '1rem',
+                        alignItems: 'center',
+                      }}
+                    >
+                      <div
+                        style={{
+                          width: '50px',
+                          height: '70px',
+                          borderRadius: '4px',
+                          backgroundImage: `url('${product.image || defaultProductImage}')`,
+                          backgroundSize: 'cover',
+                          backgroundPosition: 'center',
+                          flexShrink: 0,
+                          border: '1px solid var(--color-border)',
+                        }}
+                      />
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.25rem' }}>
+                          <p style={{ margin: 0, fontWeight: '600', fontSize: '0.95rem', color: '#fff', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                            {product.name}
+                          </p>
+                          <span style={{ fontSize: '0.75rem', color: product.active ? '#4ade80' : 'var(--color-muted)', fontWeight: 600 }}>
+                            {product.active ? '● Live' : '○ Draft'}
+                          </span>
+                        </div>
+                        <p style={{ margin: '0 0 0.25rem 0', fontSize: '0.8rem', color: 'var(--color-muted)' }}>
+                          {product.category}
+                        </p>
+                        <p style={{ margin: 0, fontSize: '0.85rem', fontWeight: 600, color: 'var(--color-bronze)' }}>
+                          ₦{Number(product.price).toLocaleString()} • {product.stock > 0 ? `${product.stock} in stock` : 'Out of stock'}
+                        </p>
+                      </div>
+                      <div style={{ display: 'flex', gap: '0.5rem', flexShrink: 0 }}>
+                        <button
+                          type="button"
+                          className="admin-move-btn"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleEditProduct(product);
+                          }}
+                          style={{ padding: '0.4rem 0.8rem', fontSize: '0.75rem' }}
+                        >
+                          Edit
+                        </button>
+                        <button
+                          type="button"
+                          className="delete-btn"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleDeleteProduct(product.id);
+                          }}
+                          style={{ padding: '0.4rem 0.8rem', fontSize: '0.75rem' }}
+                        >
+                          Delete
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        </>
       ) : (
         <div className="admin-grid">
           {/* Left Column: Cover Fields */}
@@ -1856,8 +2334,8 @@ export default function Admin() {
               onTouchEnd={handleMouseUp}
               style={{
                 width: '100%',
-                maxWidth: '400px',
-                aspectRatio: activeTab === 'cover' ? '16/10' : '4/3',
+                maxWidth: activeTab === 'products' ? '320px' : '400px',
+                aspectRatio: activeTab === 'cover' ? '16/10' : activeTab === 'products' ? '9/16' : '4/3',
                 position: 'relative',
                 overflow: 'hidden',
                 border: '1px solid var(--color-bronze)',
