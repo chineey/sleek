@@ -54,12 +54,16 @@ export async function POST(req) {
       return NextResponse.json({ authorization_url: mockCheckoutUrl, mock: true });
     }
 
+    const planCode = process.env.PAYSTACK_PLAN_CODE?.trim();
+
     const paystackData = await initializeTransaction({
       email,
       amount,
       callbackUrl,
+      ...(planCode ? { plan: planCode } : {}),
       metadata: {
-        payment_type: 'subscription'
+        payment_type: 'subscription',
+        ...(planCode ? { plan_code: planCode } : {})
       }
     });
 

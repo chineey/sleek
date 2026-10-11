@@ -39,7 +39,12 @@ export async function GET(req) {
       
       // Ensure this transaction was for a subscription
       const metadata = verificationData.metadata;
-      if (!metadata || metadata.payment_type !== 'subscription') {
+      const isSubscription = 
+        metadata?.payment_type === 'subscription' || 
+        Boolean(verificationData.plan) || 
+        Boolean(verificationData.plan_object);
+
+      if (!isSubscription) {
         // Not a subscription, redirect to a general payment success page
         return NextResponse.redirect(`${nextAuthUrl}?payment=success&reference=${reference}`);
       }

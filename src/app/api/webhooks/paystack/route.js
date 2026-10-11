@@ -39,14 +39,55 @@ export async function POST(req) {
     const payload = JSON.parse(rawBody);
     console.log('[WEBHOOK] Received event from Paystack:', payload.event);
 
+    // Handle Subscription Lifecycle Events
+    if (payload.event === 'subscription.create') {
+      const customerEmail = payload.data?.customer?.email;
+      const customerId = String(payload.data?.customer?.id || '');
+      if (customerEmail) {
+        console.log(`[WEBHOOK] Subscription created: ${customerEmail}`);
+        await prisma.subscriber.upsert({
+          where: { email: customerEmail },
+          update: { status: 'active', paystackCustomerId: customerId },
+          create: { email: customerEmail, status: 'active', paystackCustomerId: customerId },
+        });
+      }
+      return NextResponse.json({ status: 'ok', message: 'Subscription activated' });
+    }
+
+    if (
+      payload.event === 'subscription.disable' || 
+      payload.event === 'subscription.not_renew' || 
+      payload.event === 'invoice.payment_failed'
+    ) {
+      const customerEmail = 
+        payload.data?.customer?.email || 
+        payload.data?.subscription?.customer?.email || 
+        payload.data?.email;
+
+      if (customerEmail) {
+        console.log(`[WEBHOOK] Deactivating subscriber due to ${payload.event}: ${customerEmail}`);
+        await prisma.subscriber.updateMany({
+          where: { email: customerEmail },
+          data: { status: 'inactive' },
+        });
+      }
+      return NextResponse.json({ status: 'ok', message: `Processed ${payload.event}` });
+    }
+
     // Verify event is successful charge
     if (payload.event === 'charge.success' && payload.data?.status === 'success') {
       const metadata = payload.data?.metadata || {};
       const reference = payload.data?.reference;
       const customerEmail = payload.data?.customer?.email || metadata.email;
 
+      const isSubscriptionCharge = 
+        metadata.payment_type === 'subscription' || 
+        Boolean(payload.data?.plan) || 
+        Boolean(payload.data?.plan_object) || 
+        Boolean(metadata.plan_code);
+
       // 1. Subscription Flow
-      if (metadata.payment_type === 'subscription') {
+      if (isSubscriptionCharge) {
         const customerId = String(payload.data?.customer?.id || '');
         console.log(`[WEBHOOK] Activating subscriber: ${customerEmail}`);
 

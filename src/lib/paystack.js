@@ -1,6 +1,6 @@
 const PAYSTACK_SECRET_KEY = process.env.PAYSTACK_SECRET_KEY;
 
-export async function initializeTransaction({ email, amount, callbackUrl, metadata }) {
+export async function initializeTransaction({ email, amount, callbackUrl, metadata, plan }) {
   if (!PAYSTACK_SECRET_KEY) {
     throw new Error('PAYSTACK_SECRET_KEY is not defined in environment variables.');
   }
@@ -10,6 +10,10 @@ export async function initializeTransaction({ email, amount, callbackUrl, metada
     amount, // in kobo
     callback_url: callbackUrl,
   };
+
+  if (plan) {
+    body.plan = plan;
+  }
 
   if (metadata) {
     body.metadata = metadata;
