@@ -30,7 +30,11 @@ export function verifySubscriberToken(tokenStr) {
       .update(payload)
       .digest('hex');
     
-    if (signature !== expectedSignature) return null;
+    const sigBuf = Buffer.from(signature, 'hex');
+    const expectedBuf = Buffer.from(expectedSignature, 'hex');
+    if (sigBuf.length !== expectedBuf.length || !crypto.timingSafeEqual(sigBuf, expectedBuf)) {
+      return null;
+    }
     return { email };
   } catch (err) {
     return null;

@@ -1044,6 +1044,24 @@ export default function Admin() {
         </button>
         <button
           type="button"
+          onClick={() => { setActiveTab('cover'); setFeedback({ message: '', type: '' }); }}
+          style={{
+            background: 'none',
+            border: 'none',
+            color: activeTab === 'cover' ? 'var(--color-bronze)' : 'var(--color-muted)',
+            fontSize: '0.85rem',
+            fontWeight: 600,
+            letterSpacing: '0.15em',
+            padding: '1rem 0',
+            borderBottom: activeTab === 'cover' ? '2px solid var(--color-bronze)' : '2px solid transparent',
+            cursor: 'pointer',
+            textTransform: 'uppercase'
+          }}
+        >
+          Cover Settings
+        </button>
+        <button
+          type="button"
           onClick={() => { setActiveTab('products'); fetchProducts(); setFeedback({ message: '', type: '' }); }}
           style={{
             background: 'none',
@@ -1095,24 +1113,6 @@ export default function Admin() {
           }}
         >
           Pickup Locations
-        </button>
-        <button
-          type="button"
-          onClick={() => { setActiveTab('cover'); setFeedback({ message: '', type: '' }); }}
-          style={{
-            background: 'none',
-            border: 'none',
-            color: activeTab === 'cover' ? 'var(--color-bronze)' : 'var(--color-muted)',
-            fontSize: '0.85rem',
-            fontWeight: 600,
-            letterSpacing: '0.15em',
-            padding: '1rem 0',
-            borderBottom: activeTab === 'cover' ? '2px solid var(--color-bronze)' : '2px solid transparent',
-            cursor: 'pointer',
-            textTransform: 'uppercase'
-          }}
-        >
-          Cover Settings
         </button>
       </div>
 

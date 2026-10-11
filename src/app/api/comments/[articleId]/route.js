@@ -33,34 +33,39 @@ export async function GET(req, { params }) {
       return NextResponse.json({ error: 'Invalid article ID' }, { status: 400 });
     }
 
-    // Fetch top-level comments (without parent)
-    const topLevelComments = await prisma.comment.findMany({
-      where: { articleId: parseInt(articleId), parentCommentId: null },
+    // Fetch all comments for the article in a single database query
+    const allComments = await prisma.comment.findMany({
+      where: { articleId: parseInt(articleId) },
       select: {
         id: true,
         displayName: true,
         content: true,
+        parentCommentId: true,
         createdAt: true,
       },
-      orderBy: { createdAt: 'desc' },
+      orderBy: { createdAt: 'asc' },
     });
 
-    // For each top-level comment, fetch its replies
-    const commentsWithReplies = await Promise.all(
-      topLevelComments.map(async (comment) => {
-        const replies = await prisma.comment.findMany({
-          where: { parentCommentId: comment.id },
-          select: {
-            id: true,
-            displayName: true,
-            content: true,
-            createdAt: true,
-          },
-          orderBy: { createdAt: 'asc' },
-        });
-        return { ...comment, replies };
-      })
-    );
+    const topLevel = [];
+    const repliesByParent = {};
+
+    for (const comment of allComments) {
+      if (!comment.parentCommentId) {
+        topLevel.push({ ...comment, replies: [] });
+      } else {
+        if (!repliesByParent[comment.parentCommentId]) {
+          repliesByParent[comment.parentCommentId] = [];
+        }
+        repliesByParent[comment.parentCommentId].push(comment);
+      }
+    }
+
+    // Sort top-level comments newest first, attach their replies
+    topLevel.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+    const commentsWithReplies = topLevel.map((comment) => ({
+      ...comment,
+      replies: repliesByParent[comment.id] || [],
+    }));
 
     return NextResponse.json({ comments: commentsWithReplies });
   } catch (error) {

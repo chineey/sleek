@@ -22,12 +22,16 @@ const normalizeStock = (value) => {
   return Math.max(0, Math.round(parsed));
 };
 
-const getUniqueSlug = async (baseSlug) => {
+const getUniqueSlug = async (baseSlug, excludeId = null) => {
   const slugRoot = baseSlug || 'product';
   let slug = slugRoot;
   let counter = 1;
 
-  while (await prisma.product.findUnique({ where: { slug } })) {
+  while (true) {
+    const existing = await prisma.product.findUnique({ where: { slug } });
+    if (!existing || (excludeId && existing.id === excludeId)) {
+      break;
+    }
     slug = `${slugRoot}-${counter}`;
     counter += 1;
   }
@@ -125,7 +129,7 @@ export async function PUT(req) {
       );
     }
 
-    const productSlug = await getUniqueSlug(slugify(slug || name));
+    const productSlug = await getUniqueSlug(slugify(slug || name), id);
 
     const product = await prisma.product.update({
       where: { id },

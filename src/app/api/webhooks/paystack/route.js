@@ -28,8 +28,10 @@ export async function POST(req) {
         .createHmac('sha512', paystackSecret)
         .update(rawBody)
         .digest('hex');
+      const hashBuf = Buffer.from(hash, 'hex');
+      const sigBuf = Buffer.from(signature, 'hex');
 
-      if (hash !== signature) {
+      if (hashBuf.length !== sigBuf.length || !crypto.timingSafeEqual(hashBuf, sigBuf)) {
         return NextResponse.json({ error: 'Invalid signature' }, { status: 401 });
       }
     }

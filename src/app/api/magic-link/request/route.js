@@ -21,6 +21,16 @@ export async function POST(req) {
       const token = crypto.randomBytes(32).toString('hex');
       const expiresAt = new Date(Date.now() + 15 * 60 * 1000); // 15 minutes from now
 
+      // Clean up old expired/used links to keep table lean
+      await prisma.magicLink.deleteMany({
+        where: {
+          OR: [
+            { expiresAt: { lt: new Date() } },
+            { used: true }
+          ]
+        }
+      });
+
       // Save token in DB
       await prisma.magicLink.create({
         data: {

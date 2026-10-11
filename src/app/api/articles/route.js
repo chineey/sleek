@@ -3,16 +3,57 @@ import { getServerSession } from 'next-auth/next';
 import { authOptions } from '../auth/[...nextauth]/route';
 import prisma from '../../../lib/prisma';
 import { sendNewArticleNotificationEmail } from '../../../lib/email';
+import { verifySubscriberToken } from '../../../lib/subscriberToken';
 
 // GET all articles sorted by order ascending
-export async function GET() {
+export async function GET(req) {
   try {
+    const session = await getServerSession(authOptions);
+    let isSubscriber = false;
+
+    if (session) {
+      isSubscriber = true; // Admin has full access
+    } else {
+      const token = req.cookies.get('subscriber_token')?.value;
+      if (token) {
+        const payload = verifySubscriberToken(token);
+        if (payload?.email) {
+          const sub = await prisma.subscriber.findUnique({
+            where: { email: payload.email },
+          });
+          if (sub?.status === 'active') {
+            isSubscriber = true;
+          }
+        }
+      }
+    }
+
     const articles = await prisma.article.findMany({
       orderBy: {
         order: 'asc',
       },
     });
-    return NextResponse.json(articles);
+
+    // Server-side paywall: protect premium stories (order >= 2) from unauthenticated scraping
+    const sanitizedArticles = articles.map((art) => {
+      const isPaywalled = art.order >= 2;
+      if (isPaywalled && !isSubscriber) {
+        const previewContent = art.content
+          ? art.content.substring(0, Math.min(250, art.content.length)) + '...'
+          : '';
+        return {
+          ...art,
+          content: previewContent,
+          isPaywalled: true,
+        };
+      }
+      return {
+        ...art,
+        isPaywalled: false,
+      };
+    });
+
+    return NextResponse.json(sanitizedArticles);
   } catch (error) {
     console.error('Error fetching articles:', error);
     return NextResponse.json(
@@ -62,19 +103,22 @@ export async function POST(req) {
       },
     });
 
-    try {
-      const activeSubscribers = await prisma.subscriber.findMany({
-        where: { status: 'active' },
-        select: { email: true },
-      });
+    // Send subscriber notifications in background without blocking the admin response
+    (async () => {
+      try {
+        const activeSubscribers = await prisma.subscriber.findMany({
+          where: { status: 'active' },
+          select: { email: true },
+        });
 
-      const subscriberEmails = activeSubscribers.map((subscriber) => subscriber.email);
-      if (subscriberEmails.length > 0) {
-        await sendNewArticleNotificationEmail(newArticle, subscriberEmails);
+        const subscriberEmails = activeSubscribers.map((subscriber) => subscriber.email);
+        if (subscriberEmails.length > 0) {
+          await sendNewArticleNotificationEmail(newArticle, subscriberEmails);
+        }
+      } catch (notificationError) {
+        console.error('Error sending new article notifications in background:', notificationError);
       }
-    } catch (notificationError) {
-      console.error('Error sending new article notifications to subscribers:', notificationError);
-    }
+    })();
 
     return NextResponse.json(newArticle, { status: 201 });
   } catch (error) {
@@ -149,8 +193,15 @@ export async function DELETE(req) {
       );
     }
 
+    const articleIdInt = parseInt(id);
+
+    // Delete associated comments and replies to prevent orphaned rows
+    await prisma.comment.deleteMany({
+      where: { articleId: articleIdInt },
+    });
+
     const deletedArticle = await prisma.article.delete({
-      where: { id: parseInt(id) },
+      where: { id: articleIdInt },
     });
 
     return NextResponse.json({ message: 'Article deleted successfully.', deletedArticle });

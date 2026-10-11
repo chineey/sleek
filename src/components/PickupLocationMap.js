@@ -103,7 +103,25 @@ export default function PickupLocationMap({ locations, onLocationSelect, selecte
   }, [leafletReady, locations, selectedLocationId, onLocationSelect]);
 
   if (!leafletReady) {
-    return <div ref={mapContainer} style={{ width: '100%', height: '400px', background: '#f0f0f0' }} />;
+    return (
+      <div
+        ref={mapContainer}
+        style={{
+          width: '100%',
+          height: '400px',
+          background: 'var(--color-black-card, #161616)',
+          border: '1px solid var(--color-border, #333)',
+          borderRadius: '8px',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          color: 'var(--color-muted, #888)',
+          fontSize: '0.85rem',
+        }}
+      >
+        Loading map...
+      </div>
+    );
   }
 
   return (
@@ -114,7 +132,7 @@ export default function PickupLocationMap({ locations, onLocationSelect, selecte
         height: '400px',
         borderRadius: '8px',
         overflow: 'hidden',
-        border: '1px solid #ddd',
+        border: '1px solid var(--color-border, #333)',
       }}
     />
   );

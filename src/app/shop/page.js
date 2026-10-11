@@ -69,6 +69,10 @@ export default function ShopPage() {
 
     if (!selectedPickupLocation) {
       setCheckoutMessage({ message: 'Please select a pickup location first.', type: 'error' });
+      const el = document.getElementById('pickup-location-section');
+      if (el) {
+        el.scrollIntoView({ behavior: 'smooth' });
+      }
       return;
     }
 
@@ -109,12 +113,15 @@ export default function ShopPage() {
         <section className="shop-hero">
           <div className="shop-hero-copy">
             <span className="shop-kicker">SLEEK</span>
-            <h1>Shop sleek.</h1>
+            <h1>Shop Sleek.</h1>
             <p>
               Elevate your mind in style with sleek. Step into a world of ideas, stories and perspectives.
               Or just Be cool.
             </p>
-            <div className="shop-price-badge">Physical Copies are available for purchase</div>
+            <div className="shop-price-badge">
+              <div>Physical Copies are available for purchase</div>
+              <div>Select your pickup location</div>
+            </div>
           </div>
 
           <div className="shop-hero-card">
@@ -140,22 +147,12 @@ export default function ShopPage() {
           </div>
         )}
 
-        {/* Pickup Location Selection */}
-        {products.length > 0 && (
-          <section style={{ marginBottom: '3rem' }}>
-            <PickupLocationSelector
-              onLocationSelect={setSelectedPickupLocation}
-              selectedLocationId={selectedPickupLocation?.id}
-            />
-          </section>
-        )}
-
         {isLoading ? (
           <div className="shop-empty">Loading products...</div>
         ) : products.length === 0 ? (
           <div className="shop-empty">No products are live yet. Check back soon.</div>
         ) : (
-          <section className="shop-grid">
+          <section className="shop-grid" style={{ marginBottom: '4rem' }}>
             {products.map((product) => (
               <article className="shop-card" key={product.id}>
                 <div
@@ -186,6 +183,16 @@ export default function ShopPage() {
                 </div>
               </article>
             ))}
+          </section>
+        )}
+
+        {/* Pickup Location Selection */}
+        {products.length > 0 && (
+          <section id="pickup-location-section" style={{ marginBottom: '3rem' }}>
+            <PickupLocationSelector
+              onLocationSelect={setSelectedPickupLocation}
+              selectedLocationId={selectedPickupLocation?.id}
+            />
           </section>
         )}
       </div>

@@ -1,7 +1,6 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
-import Image from 'next/image';
 import Link from 'next/link';
 import Comments from '../components/Comments';
 
@@ -642,7 +641,7 @@ export default function Home() {
                             }
                           }}
                         >
-                          Unlock Now — ₦5,000
+                          Unlock Now — ₦3,500
                         </button>
                       </div>
                     </div>
