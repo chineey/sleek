@@ -493,104 +493,114 @@ export default function Admin() {
     setIsUploading(true);
     setFeedback({ message: '', type: '' });
 
-    const img = document.getElementById('crop-target-img');
-    if (!img) return;
+    try {
+      const img = document.getElementById('crop-target-img');
+      if (!img) {
+        setIsUploading(false);
+        return;
+      }
 
-    // The viewport is responsive.
-    // The canvas output is 1200x900 (articles) or 1600x1000 (cover Settings).
-    // The CSS transform on the image is: translate(ox, oy) scale(zoom)
-    // with transform-origin: center center.
-    //
-    // Strategy: read the actual viewport size, compute the scale factor
-    // to map viewport → canvas, then replicate the exact CSS rendering.
-    const viewport = document.querySelector('.crop-viewport');
-    const vpW = viewport ? viewport.clientWidth : 400;
-    const vpH = viewport ? viewport.clientHeight : 300;
+      // The viewport is responsive.
+      // The canvas output is 1200x900 (articles), 900x1600 (products), or 1600x1000 (cover Settings).
+      const viewport = document.querySelector('.crop-viewport');
+      const vpW = viewport ? viewport.clientWidth : 400;
+      const vpH = viewport ? viewport.clientHeight : 300;
 
-    const nw = img.naturalWidth;
-    const nh = img.naturalHeight;
-    // How the browser fits the image into the viewport via max-width/max-height
-    const fitRatio = Math.min(vpW / nw, vpH / nh);
-    const displayW = nw * fitRatio;
-    const displayH = nh * fitRatio;
+      const nw = img.naturalWidth || 1200;
+      const nh = img.naturalHeight || 900;
+      // How the browser fits the image into the viewport via max-width/max-height
+      const fitRatio = Math.min(vpW / nw, vpH / nh);
+      const displayW = nw * fitRatio;
+      const displayH = nh * fitRatio;
 
-    const isProductTab = activeTab === 'products';
-    const isCoverTab = activeTab === 'cover';
+      const isProductTab = activeTab === 'products';
+      const isCoverTab = activeTab === 'cover';
 
-    const canvasWidth = isCoverTab ? 1600 : isProductTab ? 900 : 1200;
-    const canvasHeight = isCoverTab ? 1000 : isProductTab ? 1600 : 900;
-    canvas.width = canvasWidth;
-    canvas.height = canvasHeight;
-    const ctx = canvas.getContext('2d');
-    ctx.clearRect(0, 0, canvasWidth, canvasHeight);
+      const canvasWidth = isCoverTab ? 1600 : isProductTab ? 900 : 1200;
+      const canvasHeight = isCoverTab ? 1000 : isProductTab ? 1600 : 900;
 
-    // Scale factor from viewport to canvas
-    const scaleX = canvasWidth / vpW;
-    const scaleY = canvasHeight / vpH;
+      const canvas = document.createElement('canvas');
+      canvas.width = canvasWidth;
+      canvas.height = canvasHeight;
+      const ctx = canvas.getContext('2d');
+      ctx.clearRect(0, 0, canvasWidth, canvasHeight);
 
-    ctx.save();
-    // Scale viewport coordinates → canvas coordinates
-    ctx.scale(scaleX, scaleY);
-    // Move origin to viewport center
-    ctx.translate(vpW / 2, vpH / 2);
-    // CSS translate(ox, oy) — applied in screen space after scale
-    ctx.translate(offset.x, offset.y);
-    // CSS scale(zoom) — applied around transform-origin (element center)
-    ctx.scale(zoom, zoom);
-    // Draw image centered at origin (matching the CSS centering via margin:auto)
-    ctx.drawImage(img, -displayW / 2, -displayH / 2, displayW, displayH);
-    ctx.restore();
+      // Scale factor from viewport to canvas
+      const scaleX = canvasWidth / vpW;
+      const scaleY = canvasHeight / vpH;
 
-    // Close crop modal
-    setCropImageSrc('');
-    setPendingFile(null);
+      ctx.save();
+      // Scale viewport coordinates → canvas coordinates
+      ctx.scale(scaleX, scaleY);
+      // Move origin to viewport center
+      ctx.translate(vpW / 2, vpH / 2);
+      // CSS translate(ox, oy) — applied in screen space after scale
+      ctx.translate(offset.x, offset.y);
+      // CSS scale(zoom) — applied around transform-origin (element center)
+      ctx.scale(zoom, zoom);
+      // Draw image centered at origin (matching the CSS centering via margin:auto)
+      ctx.drawImage(img, -displayW / 2, -displayH / 2, displayW, displayH);
+      ctx.restore();
 
-    // Convert to Blob and send
-    canvas.toBlob(
-      async (blob) => {
-        if (!blob) {
-          setFeedback({ message: 'Cropping failed.', type: 'error' });
-          setIsUploading(false);
-          return;
-        }
+      const fileName = pendingFile.name || 'cropped-image.jpg';
 
-        const croppedFile = new File([blob], pendingFile.name, { type: 'image/jpeg' });
-        const formData = new FormData();
-        formData.append('file', croppedFile);
+      // Close crop modal
+      setCropImageSrc('');
+      setPendingFile(null);
 
-        try {
-          const res = await fetch('/api/upload', {
-            method: 'POST',
-            body: formData,
-          });
-
-          const data = await res.json();
-          if (res.ok) {
-            if (activeTab === 'cover') {
-              setCoverImage(data.url);
-            } else if (activeTab === 'products') {
-              setProductForm((prev) => ({ ...prev, image: data.url }));
-            } else {
-              setImageUrl(data.url);
-            }
-            setFeedback({ message: 'Cropped photo uploaded successfully.', type: 'success' });
-          } else {
-            setFeedback({ message: data.error || 'Failed to upload photo.', type: 'error' });
+      // Convert to Blob and send
+      canvas.toBlob(
+        async (blob) => {
+          if (!blob) {
+            setFeedback({ message: 'Cropping failed.', type: 'error' });
+            setIsUploading(false);
+            return;
           }
-        } catch (err) {
-          setFeedback({ message: 'Network error uploading photo.', type: 'error' });
-        } finally {
-          setIsUploading(false);
-        }
-      },
-      'image/jpeg',
-      0.9
-    );
+
+          const croppedFile = new File([blob], fileName, { type: 'image/jpeg' });
+          const formData = new FormData();
+          formData.append('file', croppedFile);
+
+          try {
+            const res = await fetch('/api/upload', {
+              method: 'POST',
+              body: formData,
+            });
+
+            const data = await res.json();
+            if (res.ok && data.url) {
+              if (activeTab === 'cover') {
+                setCoverImage(data.url);
+              } else if (activeTab === 'products') {
+                setProductForm((prev) => ({ ...prev, image: data.url }));
+              } else {
+                setImageUrl(data.url);
+              }
+              setFeedback({ message: 'Cropped photo uploaded successfully.', type: 'success' });
+            } else {
+              setFeedback({ message: data.error || 'Failed to upload photo.', type: 'error' });
+            }
+          } catch (err) {
+            console.error('Upload error:', err);
+            setFeedback({ message: 'Network error uploading photo.', type: 'error' });
+          } finally {
+            setIsUploading(false);
+          }
+        },
+        'image/jpeg',
+        0.9
+      );
+    } catch (err) {
+      console.error('handleConfirmCrop error:', err);
+      setFeedback({ message: 'Failed to process image crop.', type: 'error' });
+      setIsUploading(false);
+    }
   };
 
   const handleCancelCrop = () => {
     setCropImageSrc('');
     setPendingFile(null);
+    setIsUploading(false);
   };
 
   // Convert plain text breaks into premium styled HTML paragraph tags (keeps existing tags intact)
