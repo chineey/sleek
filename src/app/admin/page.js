@@ -1750,13 +1750,16 @@ export default function Admin() {
                         <td style={{ padding: '1rem 1.2rem', color: 'var(--color-muted)', whiteSpace: 'nowrap' }}>
                           {new Date(order.createdAt).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}
                         </td>
-                        <td style={{ padding: '1rem 1.2rem' }}>
+                        <td style={{ padding: '1rem 1.2rem', whiteSpace: 'nowrap' }}>
                           <span style={{
+                            display: 'inline-flex',
+                            alignItems: 'center',
                             padding: '0.25rem 0.6rem',
                             borderRadius: '4px',
                             fontSize: '0.75rem',
                             fontWeight: 600,
                             textTransform: 'uppercase',
+                            whiteSpace: 'nowrap',
                             backgroundColor: order.status === 'paid' ? 'rgba(74, 222, 128, 0.15)' : 'rgba(250, 204, 21, 0.15)',
                             color: order.status === 'paid' ? '#4ade80' : '#facc15',
                             border: order.status === 'paid' ? '1px solid rgba(74, 222, 128, 0.3)' : '1px solid rgba(250, 204, 21, 0.3)',
@@ -1764,33 +1767,74 @@ export default function Admin() {
                             {order.status}
                           </span>
                         </td>
-                        <td style={{ padding: '1rem 1.2rem' }}>
-                          <div>
-                            <span style={{
-                              padding: '0.25rem 0.6rem',
-                              borderRadius: '4px',
-                              fontSize: '0.75rem',
-                              fontWeight: 600,
-                              backgroundColor: order.emailStatus === 'sent' 
-                                ? 'rgba(74, 222, 128, 0.15)' 
-                                : order.emailStatus === 'failed' 
-                                ? 'rgba(239, 68, 68, 0.15)' 
-                                : 'rgba(156, 163, 175, 0.15)',
-                              color: order.emailStatus === 'sent' 
-                                ? '#4ade80' 
-                                : order.emailStatus === 'failed' 
-                                ? '#ef4444' 
-                                : '#9ca3af',
-                              border: order.emailStatus === 'sent' 
-                                ? '1px solid rgba(74, 222, 128, 0.3)' 
-                                : order.emailStatus === 'failed' 
-                                ? '1px solid rgba(239, 68, 68, 0.3)' 
-                                : '1px solid rgba(156, 163, 175, 0.3)',
-                            }}>
-                              {order.emailStatus === 'sent' ? '✓ Sent' : order.emailStatus === 'failed' ? '⚠ Failed' : 'Pending'}
-                            </span>
-                            {order.emailError && (
-                              <div style={{ fontSize: '0.7rem', color: '#ef4444', marginTop: '4px', maxWidth: '180px', wordBreak: 'break-word' }}>
+                        <td style={{ padding: '1rem 1.2rem', whiteSpace: 'nowrap' }}>
+                          <div style={{ display: 'inline-flex', flexDirection: 'column', gap: '4px' }}>
+                            {order.emailStatus === 'sent' ? (
+                              <span style={{
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: '0.35rem',
+                                padding: '0.25rem 0.6rem',
+                                borderRadius: '4px',
+                                fontSize: '0.75rem',
+                                fontWeight: 600,
+                                textTransform: 'uppercase',
+                                backgroundColor: 'rgba(74, 222, 128, 0.15)',
+                                color: '#4ade80',
+                                border: '1px solid rgba(74, 222, 128, 0.3)',
+                                width: 'fit-content',
+                              }}>
+                                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                                  <polyline points="20 6 9 17 4 12"></polyline>
+                                </svg>
+                                Sent
+                              </span>
+                            ) : order.emailStatus === 'failed' ? (
+                              <span style={{
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: '0.35rem',
+                                padding: '0.25rem 0.6rem',
+                                borderRadius: '4px',
+                                fontSize: '0.75rem',
+                                fontWeight: 600,
+                                textTransform: 'uppercase',
+                                backgroundColor: 'rgba(239, 68, 68, 0.15)',
+                                color: '#ef4444',
+                                border: '1px solid rgba(239, 68, 68, 0.3)',
+                                width: 'fit-content',
+                              }}>
+                                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                                  <circle cx="12" cy="12" r="10"></circle>
+                                  <line x1="12" y1="8" x2="12" y2="12"></line>
+                                  <line x1="12" y1="16" x2="12.01" y2="16"></line>
+                                </svg>
+                                Failed
+                              </span>
+                            ) : (
+                              <span style={{
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: '0.35rem',
+                                padding: '0.25rem 0.6rem',
+                                borderRadius: '4px',
+                                fontSize: '0.75rem',
+                                fontWeight: 600,
+                                textTransform: 'uppercase',
+                                backgroundColor: 'rgba(156, 163, 175, 0.15)',
+                                color: '#9ca3af',
+                                border: '1px solid rgba(156, 163, 175, 0.3)',
+                                width: 'fit-content',
+                              }}>
+                                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                                  <circle cx="12" cy="12" r="10"></circle>
+                                  <polyline points="12 6 12 12 16 14"></polyline>
+                                </svg>
+                                Pending
+                              </span>
+                            )}
+                            {order.emailError && order.emailStatus === 'failed' && (
+                              <div style={{ fontSize: '0.7rem', color: '#ef4444', marginTop: '2px', maxWidth: '200px', wordBreak: 'break-word', whiteSpace: 'normal' }}>
                                 {order.emailError}
                               </div>
                             )}

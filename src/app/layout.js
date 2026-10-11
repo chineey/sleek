@@ -23,6 +23,14 @@ export const metadata = {
   title: 'Sleek Magazine — A New Wave',
   description:
     'Sleek Magazine Ish. 01 — A New Wave of fashion, art, and lifestyle. Discover exclusive editorials, premium stories, and high-fashion updates.',
+  icons: {
+    icon: [
+      { url: '/icon.svg', type: 'image/svg+xml' },
+    ],
+    apple: [
+      { url: '/apple-icon.svg', type: 'image/svg+xml' },
+    ],
+  },
 };
 
 export const viewport = {

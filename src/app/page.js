@@ -292,10 +292,10 @@ export default function Home() {
     <>
       {/* Cover Hero Section */}
       <section className={`cover-hero ${isHeroLoaded ? 'loaded' : ''}`} id="cover-hero">
-        <div 
-          className="cover-background" 
-          style={{ 
-            backgroundImage: `linear-gradient(to bottom, rgba(12, 12, 12, 0.2) 0%, rgba(12, 12, 12, 0.7) 100%), url('${cover.image}')` 
+        <div
+          className="cover-background"
+          style={{
+            backgroundImage: `linear-gradient(to bottom, rgba(12, 12, 12, 0.2) 0%, rgba(12, 12, 12, 0.7) 100%), url('${cover.image}')`
           }}
         ></div>
         <div className="cover-overlay"></div>
@@ -393,7 +393,7 @@ export default function Home() {
                       style={{ backgroundImage: `url('${article.image}')` }}
                     ></div>
                     <span className="card-category">{article.category}</span>
-                    
+
                     {isPaywalled && (
                       <div className="paywall-overlay">
                         <svg className="paywall-lock-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
@@ -512,14 +512,14 @@ export default function Home() {
 
                 {/* Magic Link Section */}
                 <div className="magic-link-section">
-                  <button 
-                    type="button" 
+                  <button
+                    type="button"
                     className="magic-link-toggle-btn"
                     onClick={() => setShowMagicLinkForm(!showMagicLinkForm)}
                   >
                     {showMagicLinkForm ? "Hide sign in form" : "Already subscribed? Sign in on a new device"}
                   </button>
-                  
+
                   {showMagicLinkForm && (
                     <div className="magic-link-box">
                       <p>Enter your subscribed email to receive an instant access link. No password required.</p>
@@ -539,9 +539,9 @@ export default function Home() {
                             fontSize: '0.85rem'
                           }}
                         />
-                        <button 
-                          type="submit" 
-                          className="sub-btn" 
+                        <button
+                          type="submit"
+                          className="sub-btn"
                           disabled={isSubmittingMagicLink}
                           style={{ padding: '0 1.25rem', width: 'auto' }}
                         >
@@ -620,7 +620,7 @@ export default function Home() {
                     <div
                       className="reader-body"
                       style={{ filter: 'blur(5px)', opacity: 0.35, pointerEvents: 'none', userSelect: 'none' }}
-                      dangerouslySetInnerHTML={{ 
+                      dangerouslySetInnerHTML={{
                         __html: selectedArticle.content.substring(0, Math.min(250, selectedArticle.content.length)) + '...'
                       }}
                     ></div>
@@ -632,8 +632,8 @@ export default function Home() {
                         </svg>
                         <h3>Subscribe to keep reading</h3>
                         <p>This premium story requires an active digital subscription. Unlock all issues and our premium digital archive today.</p>
-                        <button 
-                          className="paywall-btn" 
+                        <button
+                          className="paywall-btn"
                           onClick={() => {
                             closeReader();
                             const subSection = document.getElementById('subscribe');
@@ -653,7 +653,7 @@ export default function Home() {
                     dangerouslySetInnerHTML={{ __html: selectedArticle.content }}
                   ></div>
                 )}
-                
+
                 {/* Comments Section - Only show for non-paywalled articles */}
                 {(!(!isSubscriber && selectedArticle.order >= 2)) && (
                   <Comments articleId={selectedArticle.id} />
