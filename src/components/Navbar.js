@@ -10,6 +10,7 @@ export default function Navbar() {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [activeSection, setActiveSection] = useState('editorial');
   const [isSubscriber, setIsSubscriber] = useState(false);
+  const [isSubscriberChecked, setIsSubscriberChecked] = useState(false);
 
   // Hide the global navigation bar on admin or login routes
   if (pathname.startsWith('/admin') || pathname.startsWith('/login')) {
@@ -27,6 +28,8 @@ export default function Navbar() {
       }
     } catch (err) {
       console.error('Navbar subscriber status check failed:', err);
+    } finally {
+      setIsSubscriberChecked(true);
     }
   };
 
@@ -140,18 +143,20 @@ export default function Navbar() {
           </li>
         </ul>
 
-        {isSubscriber ? (
-          <div className="nav-subscriber-info" style={{ display: 'flex', alignItems: 'center' }}>
-            <span className="subscriber-badge">SUBSCRIBER</span>
-            <button onClick={handleLogout} className="nav-logout-btn btn-hover-effect">
-              LOGOUT
-            </button>
-          </div>
-        ) : (
-          <Link href="/#subscribe" className="nav-cta btn-hover-effect">
-            SUBSCRIBE
-          </Link>
-        )}
+        {isSubscriberChecked ? (
+          isSubscriber ? (
+            <div className="nav-subscriber-info" style={{ display: 'flex', alignItems: 'center' }}>
+              <span className="subscriber-badge">SUBSCRIBER</span>
+              <button onClick={handleLogout} className="nav-logout-btn btn-hover-effect">
+                LOGOUT
+              </button>
+            </div>
+          ) : (
+            <Link href="/#subscribe" className="nav-cta btn-hover-effect">
+              SUBSCRIBE
+            </Link>
+          )
+        ) : null}
         
         <button 
           className="mobile-nav-toggle" 
