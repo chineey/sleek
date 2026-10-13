@@ -1,4 +1,5 @@
 import { Inter, Cormorant_Garamond } from 'next/font/google';
+import { Analytics } from '@vercel/analytics/next';
 import './globals.css';
 import CustomCursor from '../components/CustomCursor';
 import Navbar from '../components/Navbar';
@@ -47,6 +48,7 @@ export default function RootLayout({ children }) {
           <Navbar />
           {children}
         </Providers>
+        <Analytics />
       </body>
     </html>
   );
