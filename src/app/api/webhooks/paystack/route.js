@@ -93,19 +93,22 @@ export async function POST(req) {
 
         const existingSubscriber = await prisma.subscriber.findUnique({ where: { email: customerEmail } });
         const wasAlreadyActive = existingSubscriber?.status === 'active';
+        const expiresAt = new Date(Date.now() + 60 * 24 * 60 * 60 * 1000);
 
         await prisma.subscriber.upsert({
           where: { email: customerEmail },
           update: {
             status: 'active',
             paystackCustomerId: customerId,
-            paystackReference: reference
+            paystackReference: reference,
+            expiresAt,
           },
           create: {
             email: customerEmail,
             status: 'active',
             paystackCustomerId: customerId,
-            paystackReference: reference
+            paystackReference: reference,
+            expiresAt,
           }
         });
 

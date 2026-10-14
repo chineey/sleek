@@ -2206,7 +2206,7 @@ img {
 }
 
 .shop-card-image {
-    height: 260px;
+    aspect-ratio: 4/3;
     width: 100%;
     background-size: cover;
     background-position: center;
@@ -2498,13 +2498,25 @@ img {
     pointer-events: auto !important;
 }
 
+/* Remove blur from regular articles for unsubscribed users */
 .article-card.paywalled .card-img-wrapper {
-    filter: blur(4px) grayscale(30%);
+    filter: none;
 }
 
 .article-card.paywalled .card-info {
-    filter: blur(2px);
-    opacity: 0.4;
+    filter: none;
+    opacity: 1;
+}
+
+/* Sleekpeak remains blurred for unsubscribed users */
+.article-card.sleekpeak-locked .card-img-wrapper {
+    filter: blur(6px) grayscale(40%);
+}
+
+.article-card.sleekpeak-locked .card-info {
+    filter: blur(3px);
+    opacity: 0.35;
+    user-select: none;
 }
 
 /* Reader Modal Paywall */

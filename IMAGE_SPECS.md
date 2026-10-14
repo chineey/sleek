@@ -10,7 +10,8 @@ This document outlines the optimal resolutions, aspect ratios, and guidelines fo
 | :--- | :---: | :---: | :---: | :---: | :---: |
 | **Cover Background Photo** | **16:10** | **1920 × 1200 px** *(or 1600 × 1000 px)* | 1600 × 1000 px | Landscape | JPG / PNG / WebP |
 | **Articles Feed Photo** | **4:3** | **1600 × 1200 px** *(or 1200 × 900 px)* | 1200 × 900 px | Landscape | JPG / PNG / WebP |
-| **Shop Products Photo** | **9:16** | **1080 × 1920 px** *(or 900 × 1600 px)* | 900 × 1600 px | Portrait (Vertical) | JPG / PNG / WebP |
+| **Shop Products Photo** | **4:3** | **1600 × 1200 px** *(or 1200 × 900 px)* | 1200 × 900 px | Landscape | JPG / PNG / WebP |
+| **Events Photo** | **4:3** | **1600 × 1200 px** *(or 1200 × 900 px)* | 1200 × 900 px | Landscape | JPG / PNG / WebP |
 
 ---
 
@@ -32,10 +33,17 @@ This document outlines the optimal resolutions, aspect ratios, and guidelines fo
 
 ### 3. Shop Products Photo
 - **Usage**: Shop sleek product cards, physical magazine edition displays, and shop checkout preview.
-- **Aspect Ratio**: `9:16` (Full Portrait / Mobile Story format).
-- **Optimal Upload**: `1080 × 1920 px` or `900 × 1600 px`.
-- **Canvas Output Size**: `900 × 1600 px`.
-- **Notes**: Vertical orientation matches mobile screens and magazine print mockups. Frame the physical copy or merchandise clearly in the upper-to-middle area.
+- **Aspect Ratio**: `4:3` (Same Aspect Ratio as Editorial Articles).
+- **Optimal Upload**: `1600 × 1200 px` or `1200 × 900 px`.
+- **Canvas Output Size**: `1200 × 900 px`.
+- **Notes**: Matches the classic magazine editorial frame. Frame the physical copy or merchandise clearly in the center area.
+
+### 4. Events Photo
+- **Usage**: Event cards, countdown hero preview, and event detail modal.
+- **Aspect Ratio**: `4:3` (Same Aspect Ratio as Editorial Articles).
+- **Optimal Upload**: `1600 × 1200 px` or `1200 × 900 px`.
+- **Canvas Output Size**: `1200 × 900 px`.
+- **Notes**: Event promotional photography, venue imagery, or party flyers framed in 4:3.
 
 ---
 

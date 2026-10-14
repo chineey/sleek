@@ -17,7 +17,7 @@ export async function GET(req) {
       return NextResponse.json({ isSubscriber: false });
     }
 
-    // Verify subscriber is still active in DB
+    // Verify subscriber is still active and not expired in DB
     const subscriber = await prisma.subscriber.findUnique({
       where: { email: payload.email }
     });
@@ -25,6 +25,16 @@ export async function GET(req) {
     if (!subscriber || subscriber.status !== 'active') {
       // Clear invalid cookie
       const response = NextResponse.json({ isSubscriber: false });
+      response.cookies.delete('subscriber_token');
+      return response;
+    }
+
+    if (subscriber.expiresAt && new Date() > subscriber.expiresAt) {
+      await prisma.subscriber.update({
+        where: { email: subscriber.email },
+        data: { status: 'inactive' }
+      });
+      const response = NextResponse.json({ isSubscriber: false, expired: true });
       response.cookies.delete('subscriber_token');
       return response;
     }

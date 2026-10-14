@@ -72,8 +72,21 @@ export default function Admin() {
   // Shop Orders states
   const [ordersList, setOrdersList] = useState([]);
   const [isLoadingOrders, setIsLoadingOrders] = useState(false);
-  const [resendingOrderId, setResendingOrderId] = useState(null);
   const [orderSearchQuery, setOrderSearchQuery] = useState('');
+
+  // Events states
+  const [eventsList, setEventsList] = useState([]);
+  const [selectedEventId, setSelectedEventId] = useState('');
+  const [eventTitle, setEventTitle] = useState('');
+  const [eventDate, setEventDate] = useState('');
+  const [eventLocation, setEventLocation] = useState('');
+  const [eventAddress, setEventAddress] = useState('');
+  const [eventLat, setEventLat] = useState('');
+  const [eventLng, setEventLng] = useState('');
+  const [eventDescription, setEventDescription] = useState('');
+  const [eventImage, setEventImage] = useState('');
+  const [eventActive, setEventActive] = useState(true);
+  const [isLoadingEvents, setIsLoadingEvents] = useState(false);
 
   // Fetch cover settings
   useEffect(() => {
@@ -153,6 +166,7 @@ export default function Admin() {
       fetchProducts();
       fetchPickupLocations();
       fetchOrders();
+      fetchEvents();
     }
   }, [status]);
 
@@ -377,6 +391,162 @@ export default function Admin() {
     }
   };
 
+  // Fetch events
+  const fetchEvents = async () => {
+    setIsLoadingEvents(true);
+    try {
+      const res = await fetch('/api/events?all=true');
+      if (res.ok) {
+        const data = await res.json();
+        setEventsList(data);
+      }
+    } catch (err) {
+      console.error('Failed to fetch events:', err);
+    } finally {
+      setIsLoadingEvents(false);
+    }
+  };
+
+  const resetEventForm = () => {
+    setSelectedEventId('');
+    setEventTitle('');
+    setEventDate('');
+    setEventLocation('');
+    setEventAddress('');
+    setEventLat('');
+    setEventLng('');
+    setEventDescription('');
+    setEventImage('');
+    setEventActive(true);
+  };
+
+  const handleSelectEvent = (e) => {
+    const val = e.target.value;
+    setSelectedEventId(val);
+    setFeedback({ message: '', type: '' });
+
+    if (val === 'new' || !val) {
+      resetEventForm();
+      if (val === 'new') setSelectedEventId('new');
+      return;
+    }
+
+    const selected = eventsList.find((ev) => ev.id === val);
+    if (selected) {
+      setEventTitle(selected.title);
+      try {
+        const d = new Date(selected.date);
+        const isoLocal = new Date(d.getTime() - d.getTimezoneOffset() * 60000).toISOString().slice(0, 16);
+        setEventDate(isoLocal);
+      } catch {
+        setEventDate('');
+      }
+      setEventLocation(selected.location);
+      setEventAddress(selected.address);
+      setEventLat(selected.latitude != null ? selected.latitude.toString() : '');
+      setEventLng(selected.longitude != null ? selected.longitude.toString() : '');
+      setEventDescription(selected.description);
+      setEventImage(selected.image || '');
+      setEventActive(selected.active);
+    }
+  };
+
+  const handleEventSubmit = async (e) => {
+    e.preventDefault();
+    if (!eventTitle || !eventDate || !eventLocation || !eventAddress || !eventDescription) {
+      setFeedback({ message: 'Title, Date, Location, Address, and Description are required.', type: 'error' });
+      return;
+    }
+
+    setIsSubmitting(true);
+    setFeedback({ message: '', type: '' });
+
+    let latNum = null;
+    let lngNum = null;
+    if (eventLat !== '' || eventLng !== '') {
+      latNum = parseFloat(eventLat);
+      lngNum = parseFloat(eventLng);
+      if (isNaN(latNum) || isNaN(lngNum) || latNum < -90 || latNum > 90 || lngNum < -180 || lngNum > 180) {
+        setFeedback({
+          message: 'Invalid latitude or longitude. Latitude: -90 to 90, Longitude: -180 to 180.',
+          type: 'error',
+        });
+        setIsSubmitting(false);
+        return;
+      }
+    }
+
+    try {
+      const payload = {
+        title: eventTitle,
+        date: new Date(eventDate).toISOString(),
+        location: eventLocation,
+        address: eventAddress,
+        latitude: latNum,
+        longitude: lngNum,
+        description: eventDescription,
+        image: eventImage,
+        active: eventActive,
+      };
+
+      if (selectedEventId && selectedEventId !== 'new') {
+        payload.id = selectedEventId;
+      }
+
+      const method = selectedEventId && selectedEventId !== 'new' ? 'PUT' : 'POST';
+      const res = await fetch('/api/events', {
+        method,
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.error || 'Failed to save event.');
+      }
+
+      setFeedback({
+        message: selectedEventId && selectedEventId !== 'new' ? 'Event updated successfully.' : 'Event created successfully.',
+        type: 'success',
+      });
+      resetEventForm();
+      await fetchEvents();
+    } catch (err) {
+      setFeedback({ message: err.message || 'Error saving event.', type: 'error' });
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleDeleteEvent = async (idToDelete) => {
+    const targetId = idToDelete || selectedEventId;
+    if (!targetId || targetId === 'new') return;
+
+    if (!window.confirm('Are you sure you want to delete this event? This will also remove its ratings and comments.')) return;
+
+    setIsSubmitting(true);
+    setFeedback({ message: '', type: '' });
+
+    try {
+      const res = await fetch(`/api/events?id=${encodeURIComponent(targetId)}`, {
+        method: 'DELETE',
+      });
+
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.error || 'Failed to delete event.');
+      }
+
+      setFeedback({ message: 'Event deleted successfully.', type: 'success' });
+      if (selectedEventId === targetId) resetEventForm();
+      await fetchEvents();
+    } catch (err) {
+      setFeedback({ message: err.message || 'Error deleting event.', type: 'error' });
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
   if (status === 'loading') {
     return (
       <div className="login-wrapper">
@@ -513,11 +683,11 @@ export default function Admin() {
       const displayW = nw * fitRatio;
       const displayH = nh * fitRatio;
 
-      const isProductTab = activeTab === 'products';
       const isCoverTab = activeTab === 'cover';
 
-      const canvasWidth = isCoverTab ? 1600 : isProductTab ? 900 : 1200;
-      const canvasHeight = isCoverTab ? 1000 : isProductTab ? 1600 : 900;
+      // Cover is 1600x1000 (16:10). Articles, Products, and Events are all 1200x900 (4:3).
+      const canvasWidth = isCoverTab ? 1600 : 1200;
+      const canvasHeight = isCoverTab ? 1000 : 900;
 
       const canvas = document.createElement('canvas');
       canvas.width = canvasWidth;
@@ -573,6 +743,8 @@ export default function Admin() {
                 setCoverImage(data.url);
               } else if (activeTab === 'products') {
                 setProductForm((prev) => ({ ...prev, image: data.url }));
+              } else if (activeTab === 'events') {
+                setEventImage(data.url);
               } else {
                 setImageUrl(data.url);
               }
@@ -1077,6 +1249,24 @@ export default function Admin() {
           }}
         >
           Shop Products
+        </button>
+        <button
+          type="button"
+          onClick={() => { setActiveTab('events'); fetchEvents(); setFeedback({ message: '', type: '' }); }}
+          style={{
+            background: 'none',
+            border: 'none',
+            color: activeTab === 'events' ? 'var(--color-bronze)' : 'var(--color-muted)',
+            fontSize: '0.85rem',
+            fontWeight: 600,
+            letterSpacing: '0.15em',
+            padding: '1rem 0',
+            borderBottom: activeTab === 'events' ? '2px solid var(--color-bronze)' : '2px solid transparent',
+            cursor: 'pointer',
+            textTransform: 'uppercase'
+          }}
+        >
+          Events
         </button>
         <button
           type="button"
@@ -2002,7 +2192,7 @@ export default function Admin() {
 
                 {/* Product Photo Upload Section */}
                 <div className="form-group" style={{ marginTop: '1.5rem' }}>
-                  <label>Product Photo (9:16 Portrait)</label>
+                  <label>Product Photo (4:3 Aspect Ratio)</label>
                   <label
                     className="upload-zone"
                     style={{
@@ -2034,14 +2224,14 @@ export default function Admin() {
                         ? 'Uploading to Cloudinary...'
                         : productForm.image && productForm.image !== defaultProductImage
                         ? 'Click to change product photo'
-                        : 'Click to upload product photo (9:16 Portrait)'}
+                        : 'Click to upload product photo (4:3 Aspect Ratio)'}
                     </span>
                   </label>
 
                   {productForm.image && productForm.image !== defaultProductImage && (
                     <div className="form-group" style={{ marginTop: '1.5rem' }}>
                       <label style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                        <span>Photo Preview (9:16)</span>
+                        <span>Photo Preview (4:3)</span>
                         <button
                           type="button"
                           onClick={() => document.getElementById('upload-product-photo-input').click()}
@@ -2058,7 +2248,7 @@ export default function Admin() {
                           Change Photo
                         </button>
                       </label>
-                      <div className="upload-preview" style={{ aspectRatio: '9/16', maxWidth: '240px' }}>
+                      <div className="upload-preview" style={{ aspectRatio: '4/3', maxWidth: '320px' }}>
                         <img src={productForm.image} alt="Product preview" />
                       </div>
                     </div>
@@ -2166,6 +2356,365 @@ export default function Admin() {
                       </div>
                     </div>
                   ))}
+                </div>
+              )}
+            </div>
+          </div>
+        </>
+      ) : activeTab === 'events' ? (
+        <>
+          {/* Events Selector */}
+          <div className="form-group" style={{ marginBottom: '3rem', maxWidth: '500px' }}>
+            <label htmlFor="event-select" style={{ fontSize: '0.8rem', color: 'var(--color-bronze)' }}>
+              Select Event Action
+            </label>
+            <select
+              id="event-select"
+              className="form-select"
+              value={selectedEventId}
+              onChange={handleSelectEvent}
+              style={{ marginTop: '0.5rem', border: '1px solid var(--color-bronze)' }}
+            >
+              <option value="">-- Choose an action --</option>
+              <option value="new">+ Create New Event</option>
+              <optgroup label="Edit Existing Events">
+                {eventsList.map((ev) => (
+                  <option key={ev.id} value={ev.id}>
+                    {ev.title} ({new Date(ev.date).toLocaleDateString()})
+                  </option>
+                ))}
+              </optgroup>
+            </select>
+          </div>
+
+          <div className="admin-grid" style={{ opacity: selectedEventId ? 1 : 0.4, transition: 'opacity 0.3s' }}>
+            {/* Left Column: Event Form */}
+            <div>
+              <h2 className="subtitle-tag" style={{ marginBottom: '2rem' }}>
+                {selectedEventId === 'new' ? 'Create Event Details' : 'Edit Event Details'}
+              </h2>
+              <form onSubmit={handleEventSubmit} className="editor-form">
+                <div className="form-group">
+                  <label htmlFor="eventTitle">Event Title</label>
+                  <input
+                    id="eventTitle"
+                    type="text"
+                    className="form-input"
+                    value={eventTitle}
+                    onChange={(e) => setEventTitle(e.target.value)}
+                    required
+                    disabled={!selectedEventId || isSubmitting}
+                    placeholder="e.g. SLEEK Nightwave: Launch Party"
+                  />
+                </div>
+
+                <div className="form-group">
+                  <label htmlFor="eventDate">Date &amp; Time</label>
+                  <input
+                    id="eventDate"
+                    type="datetime-local"
+                    className="form-input"
+                    value={eventDate}
+                    onChange={(e) => setEventDate(e.target.value)}
+                    required
+                    disabled={!selectedEventId || isSubmitting}
+                  />
+                </div>
+
+                <div className="form-group">
+                  <label htmlFor="eventLocation">Venue / Location Name</label>
+                  <input
+                    id="eventLocation"
+                    type="text"
+                    className="form-input"
+                    value={eventLocation}
+                    onChange={(e) => setEventLocation(e.target.value)}
+                    required
+                    disabled={!selectedEventId || isSubmitting}
+                    placeholder="e.g. The Glasshouse Lounge"
+                  />
+                </div>
+
+                <div className="form-group">
+                  <label htmlFor="eventAddress">Full Address (For Directions)</label>
+                  <input
+                    id="eventAddress"
+                    type="text"
+                    className="form-input"
+                    value={eventAddress}
+                    onChange={(e) => setEventAddress(e.target.value)}
+                    required
+                    disabled={!selectedEventId || isSubmitting}
+                    placeholder="e.g. 15 Admiralty Way, Lekki Phase 1, Lagos"
+                  />
+                </div>
+
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+                  <div className="form-group">
+                    <label htmlFor="eventLat">Latitude (Optional GPS)</label>
+                    <input
+                      id="eventLat"
+                      type="number"
+                      step="0.00001"
+                      className="form-input"
+                      value={eventLat}
+                      onChange={(e) => setEventLat(e.target.value)}
+                      placeholder="e.g. 6.4474"
+                      disabled={!selectedEventId || isSubmitting}
+                    />
+                  </div>
+                  <div className="form-group">
+                    <label htmlFor="eventLng">Longitude (Optional GPS)</label>
+                    <input
+                      id="eventLng"
+                      type="number"
+                      step="0.00001"
+                      className="form-input"
+                      value={eventLng}
+                      onChange={(e) => setEventLng(e.target.value)}
+                      placeholder="e.g. 3.4723"
+                      disabled={!selectedEventId || isSubmitting}
+                    />
+                  </div>
+                </div>
+
+                <div className="form-group">
+                  <label htmlFor="eventDescription">Description &amp; Event Info</label>
+                  <textarea
+                    id="eventDescription"
+                    className="form-textarea"
+                    rows="4"
+                    value={eventDescription}
+                    onChange={(e) => setEventDescription(e.target.value)}
+                    required
+                    disabled={!selectedEventId || isSubmitting}
+                    placeholder="Party lineup, dress code, special guests, and schedule..."
+                  />
+                </div>
+
+                <div className="form-group" style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                  <input
+                    id="eventActive"
+                    type="checkbox"
+                    checked={eventActive}
+                    onChange={(e) => setEventActive(e.target.checked)}
+                    disabled={!selectedEventId || isSubmitting}
+                    style={{ cursor: 'pointer', width: '18px', height: '18px' }}
+                  />
+                  <label htmlFor="eventActive" style={{ margin: 0, cursor: 'pointer', color: 'var(--color-ivory)' }}>
+                    Event is published and visible on the website
+                  </label>
+                </div>
+
+                {/* Event Photo Upload */}
+                <div className="form-group" style={{ marginTop: '1.5rem' }}>
+                  <label>Event Photo (4:3 Aspect Ratio - Same as Articles)</label>
+                  <label
+                    className="upload-zone"
+                    style={{
+                      cursor: selectedEventId && !isSubmitting ? 'pointer' : 'not-allowed',
+                      opacity: selectedEventId ? 1 : 0.6,
+                    }}
+                  >
+                    <input
+                      id="upload-event-photo-input"
+                      type="file"
+                      accept="image/*"
+                      onChange={handleImageUploadSelect}
+                      style={{ display: 'none' }}
+                      disabled={!selectedEventId || isUploading || isSubmitting}
+                    />
+                    <svg
+                      width="32"
+                      height="32"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="var(--color-bronze)"
+                      strokeWidth="1.5"
+                      style={{ marginBottom: '0.5rem' }}
+                    >
+                      <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M17 8l-5-5-5 5M12 3v12" />
+                    </svg>
+                    <span className="upload-text">
+                      {isUploading
+                        ? 'Uploading to Cloudinary...'
+                        : eventImage
+                        ? 'Click to change event photo'
+                        : 'Click to upload event photo (4:3 Aspect Ratio)'}
+                    </span>
+                  </label>
+
+                  {eventImage && (
+                    <div className="form-group" style={{ marginTop: '1.5rem' }}>
+                      <label style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <span>Photo Preview (4:3)</span>
+                        <button
+                          type="button"
+                          onClick={() => document.getElementById('upload-event-photo-input').click()}
+                          style={{
+                            background: 'none',
+                            border: 'none',
+                            color: 'var(--color-bronze)',
+                            fontSize: '0.75rem',
+                            cursor: 'pointer',
+                            textDecoration: 'underline',
+                            padding: 0,
+                          }}
+                        >
+                          Change Photo
+                        </button>
+                      </label>
+                      <div className="upload-preview" style={{ aspectRatio: '4/3', maxWidth: '320px' }}>
+                        <img src={eventImage} alt="Event preview" />
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                <div className="admin-button-group" style={{ marginTop: '2rem' }}>
+                  <button
+                    type="submit"
+                    className="publish-btn"
+                    disabled={!selectedEventId || isSubmitting || isUploading}
+                  >
+                    {isSubmitting ? 'SAVING...' : selectedEventId && selectedEventId !== 'new' ? 'UPDATE EVENT' : 'CREATE EVENT'}
+                  </button>
+                  {selectedEventId && selectedEventId !== 'new' && (
+                    <button
+                      type="button"
+                      className="delete-btn"
+                      onClick={() => handleDeleteEvent(selectedEventId)}
+                      disabled={isSubmitting}
+                    >
+                      DELETE
+                    </button>
+                  )}
+                </div>
+              </form>
+            </div>
+
+            {/* Right Column: Events List */}
+            <div>
+              <h2 className="subtitle-tag" style={{ marginBottom: '2rem' }}>
+                Manage Events ({eventsList.length})
+              </h2>
+
+              {isLoadingEvents && eventsList.length === 0 ? (
+                <p style={{ color: 'var(--color-muted)' }}>Loading events...</p>
+              ) : eventsList.length === 0 ? (
+                <p style={{ color: 'var(--color-muted)' }}>No events created yet. Click "+ Create New Event" to schedule your first gathering.</p>
+              ) : (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+                  {eventsList.map((ev) => {
+                    const isPast = new Date(ev.date) < new Date();
+                    return (
+                      <div
+                        key={ev.id}
+                        className="admin-article-item"
+                        onClick={() => {
+                          setSelectedEventId(ev.id);
+                          setFeedback({ message: '', type: '' });
+                          setEventTitle(ev.title);
+                          try {
+                            const d = new Date(ev.date);
+                            const isoLocal = new Date(d.getTime() - d.getTimezoneOffset() * 60000).toISOString().slice(0, 16);
+                            setEventDate(isoLocal);
+                          } catch {
+                            setEventDate('');
+                          }
+                          setEventLocation(ev.location);
+                          setEventAddress(ev.address);
+                          setEventLat(ev.latitude != null ? ev.latitude.toString() : '');
+                          setEventLng(ev.longitude != null ? ev.longitude.toString() : '');
+                          setEventDescription(ev.description);
+                          setEventImage(ev.image || '');
+                          setEventActive(ev.active);
+                        }}
+                        style={{
+                          padding: '1rem',
+                          borderLeft: selectedEventId === ev.id ? '3px solid var(--color-bronze)' : '3px solid transparent',
+                          cursor: 'pointer',
+                          backgroundColor: selectedEventId === ev.id ? 'rgba(186, 156, 135, 0.08)' : 'var(--color-black-card)',
+                          display: 'flex',
+                          gap: '1rem',
+                          alignItems: 'center',
+                        }}
+                      >
+                        <div
+                          style={{
+                            width: '64px',
+                            height: '48px',
+                            borderRadius: '4px',
+                            backgroundImage: `url('${ev.image || 'https://images.unsplash.com/photo-1514525253161-7a46d19cd819?q=80&w=1200&auto=format&fit=crop'}')`,
+                            backgroundSize: 'cover',
+                            backgroundPosition: 'center',
+                            flexShrink: 0,
+                            border: '1px solid var(--color-border)',
+                          }}
+                        />
+                        <div style={{ flex: 1, minWidth: 0 }}>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.25rem' }}>
+                            <p style={{ margin: 0, fontWeight: '600', fontSize: '0.95rem', color: '#fff', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                              {ev.title}
+                            </p>
+                            <span style={{ fontSize: '0.75rem', color: ev.active ? '#4ade80' : 'var(--color-muted)', fontWeight: 600 }}>
+                              {ev.active ? (isPast ? '● Concluded' : '● Upcoming') : '○ Draft'}
+                            </span>
+                          </div>
+                          <p style={{ margin: '0 0 0.25rem 0', fontSize: '0.8rem', color: 'var(--color-bronze)' }}>
+                            🕒 {new Date(ev.date).toLocaleDateString()} • {ev.location}
+                            {ev.latitude != null && ev.longitude != null && (
+                              <span style={{ marginLeft: '0.5rem', color: 'var(--color-muted)', fontSize: '0.75rem' }}>
+                                (GPS: {ev.latitude.toFixed(4)}, {ev.longitude.toFixed(4)})
+                              </span>
+                            )}
+                          </p>
+                          <p style={{ margin: 0, fontSize: '0.75rem', color: 'var(--color-muted)' }}>
+                            ★ {ev.averageRating ? `${ev.averageRating} / 5 (${ev.ratingsCount || 0} ratings)` : 'No ratings yet'} • {ev.commentsCount || 0} comments
+                          </p>
+                        </div>
+                        <div style={{ display: 'flex', gap: '0.5rem', flexShrink: 0 }}>
+                          <button
+                            type="button"
+                            className="admin-move-btn"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setSelectedEventId(ev.id);
+                              setEventTitle(ev.title);
+                              try {
+                                const d = new Date(ev.date);
+                                const isoLocal = new Date(d.getTime() - d.getTimezoneOffset() * 60000).toISOString().slice(0, 16);
+                                setEventDate(isoLocal);
+                              } catch {
+                                setEventDate('');
+                              }
+                              setEventLocation(ev.location);
+                              setEventAddress(ev.address);
+                              setEventLat(ev.latitude != null ? ev.latitude.toString() : '');
+                              setEventLng(ev.longitude != null ? ev.longitude.toString() : '');
+                              setEventDescription(ev.description);
+                              setEventImage(ev.image || '');
+                              setEventActive(ev.active);
+                            }}
+                            style={{ padding: '0.4rem 0.8rem', fontSize: '0.75rem' }}
+                          >
+                            Edit
+                          </button>
+                          <button
+                            type="button"
+                            className="delete-btn"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleDeleteEvent(ev.id);
+                            }}
+                            style={{ padding: '0.4rem 0.8rem', fontSize: '0.75rem' }}
+                          >
+                            Delete
+                          </button>
+                        </div>
+                      </div>
+                    );
+                  })}
                 </div>
               )}
             </div>
@@ -2388,8 +2937,8 @@ export default function Admin() {
               onTouchEnd={handleMouseUp}
               style={{
                 width: '100%',
-                maxWidth: activeTab === 'products' ? '320px' : '400px',
-                aspectRatio: activeTab === 'cover' ? '16/10' : activeTab === 'products' ? '9/16' : '4/3',
+                maxWidth: '400px',
+                aspectRatio: activeTab === 'cover' ? '16/10' : '4/3',
                 position: 'relative',
                 overflow: 'hidden',
                 border: '1px solid var(--color-bronze)',

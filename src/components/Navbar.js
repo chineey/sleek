@@ -18,6 +18,8 @@ export default function Navbar() {
   }
 
   const isShopActive = pathname === '/shop';
+  const isEventsActive = pathname === '/events' || pathname.startsWith('/events');
+  const isSubPage = isShopActive || isEventsActive;
 
   const checkSubscriberStatus = async () => {
     try {
@@ -47,8 +49,8 @@ export default function Navbar() {
       const scrollPos = window.scrollY;
       const viewportHeight = window.innerHeight;
 
-      // Show/hide sticky navbar depending on scroll offset
-      if (scrollPos > viewportHeight - 100) {
+      // Show/hide sticky navbar depending on scroll offset or if on a sub-page
+      if (isSubPage || scrollPos > viewportHeight - 100) {
         setIsVisible(true);
       } else {
         setIsVisible(false);
@@ -130,6 +132,15 @@ export default function Navbar() {
               onClick={() => setIsMenuOpen(false)}
             >
               Subscribe
+            </Link>
+          </li>
+          <li>
+            <Link 
+              href="/events" 
+              className={`nav-link-item ${isEventsActive ? 'active' : ''}`}
+              onClick={() => setIsMenuOpen(false)}
+            >
+              Events
             </Link>
           </li>
           <li>

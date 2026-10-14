@@ -36,10 +36,13 @@ async function getIsSubscriber() {
 
     const subscriber = await prisma.subscriber.findUnique({
       where: { email: payload.email },
-      select: { status: true },
+      select: { status: true, expiresAt: true },
     });
 
-    return subscriber?.status === 'active';
+    if (!subscriber || subscriber.status !== 'active') return false;
+    if (subscriber.expiresAt && new Date() > subscriber.expiresAt) return false;
+
+    return true;
   } catch {
     return false;
   }

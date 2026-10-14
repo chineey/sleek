@@ -7,7 +7,7 @@ import Comments from './Comments';
 export default function HomeClient({ initialCover, initialIsSubscriber }) {
   const [articles, setArticles] = useState([]);
   const [filteredArticles, setFilteredArticles] = useState([]);
-  const [activeCategory, setActiveCategory] = useState('all');
+  const [activeCategory, setActiveCategory] = useState('editorial');
   const [isHeroLoaded, setIsHeroLoaded] = useState(false);
 
   // Initialise from server-rendered props — no flash on first paint
@@ -104,7 +104,9 @@ export default function HomeClient({ initialCover, initialIsSubscriber }) {
         if (res.ok) {
           const data = await res.json();
           setArticles(data);
-          setFilteredArticles(data);
+          // Default to editorial category
+          const editorialArticles = data.filter(a => a.category?.toLowerCase() === 'editorial');
+          setFilteredArticles(editorialArticles.length > 0 ? editorialArticles : data);
         }
       } catch (err) {
         console.error('Failed to load articles:', err);
@@ -122,11 +124,7 @@ export default function HomeClient({ initialCover, initialIsSubscriber }) {
   // Filter articles based on Category
   const handleCategoryFilter = (category) => {
     setActiveCategory(category);
-    if (category === 'all') {
-      setFilteredArticles(articles);
-    } else {
-      setFilteredArticles(articles.filter(a => a.category.toLowerCase() === category.toLowerCase()));
-    }
+    setFilteredArticles(articles.filter(a => a.category?.toLowerCase() === category.toLowerCase()));
   };
 
   // Excerpt generation helper (strips HTML and truncates)
@@ -327,37 +325,38 @@ export default function HomeClient({ initialCover, initialIsSubscriber }) {
             </p>
           </header>
 
-          {/* Categories Filter */}
+          {/* Categories Filter - Editorial default, no All Stories */}
           <div className="filter-container">
-            {['all', 'fashion', 'culture', 'sleek peak', 'sports', 'business news', 'comics', 'editorial'].map((cat) => (
+            {['editorial', 'fashion', 'culture', 'sleek peak', 'sports', 'business news', 'comics'].map((cat) => (
               <button
                 key={cat}
                 className={`filter-btn ${activeCategory === cat ? 'active' : ''}`}
                 onClick={() => handleCategoryFilter(cat)}
               >
-                {cat === 'all' ? 'All Stories' : cat}
+                {cat}
               </button>
             ))}
           </div>
 
           {/* Articles Grid */}
           <div className="articles-grid">
-            {filteredArticles.map((article, idx) => {
+            {filteredArticles.map((article) => {
               const isFeatured = false;
-              // Paywall logic: first 2 articles are free. Remaining articles are gated.
-              const isPaywalled = !isSubscriber && article.order >= 2;
+              const isSleekPeak = article.category?.toLowerCase().replace(/\s+/g, '') === 'sleekpeak';
+              // Sleekpeak stays blurred for non-subscribers; regular articles are clear and viewable
+              const isCardBlurred = !isSubscriber && isSleekPeak;
 
               return (
                 <article
                   key={article.id}
-                  className={`article-card ${isFeatured ? 'featured' : ''} ${isPaywalled ? 'paywalled' : ''}`}
+                  className={`article-card ${isFeatured ? 'featured' : ''} ${isCardBlurred ? 'sleekpeak-locked' : ''} ${!isSubscriber ? 'paywalled' : ''}`}
                   onClick={() => {
-                    if (isPaywalled) {
+                    if (isCardBlurred) {
                       const subSection = document.getElementById('subscribe');
                       if (subSection) {
                         subSection.scrollIntoView({ behavior: 'smooth' });
                       }
-                      showToast('This story is premium. Subscribe to read.', 'info');
+                      showToast('Sleek Peak stories are exclusive to subscribers. Subscribe to unlock.', 'info');
                     } else {
                       openReader(article);
                     }
@@ -371,14 +370,15 @@ export default function HomeClient({ initialCover, initialIsSubscriber }) {
                     ></div>
                     <span className="card-category">{article.category}</span>
 
-                    {isPaywalled && (
-                      <div className="paywall-overlay">
+                    {/* Lock overlay ONLY for Sleek Peak */}
+                    {isCardBlurred && (
+                      <div className="paywall-overlay" style={{ backdropFilter: 'blur(8px)', backgroundColor: 'rgba(12, 12, 12, 0.85)' }}>
                         <svg className="paywall-lock-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
                           <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
                           <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
                         </svg>
-                        <h4 className="paywall-title">Premium Story</h4>
-                        <p className="paywall-desc">Subscribe to unlock access to this and other premium issues.</p>
+                        <h4 className="paywall-title">Sleek Peak Exclusive</h4>
+                        <p className="paywall-desc">Subscribe to unlock access to Sleek Peak and all premium issues.</p>
                         <button className="paywall-btn">Subscribe</button>
                       </div>
                     )}
@@ -388,7 +388,7 @@ export default function HomeClient({ initialCover, initialIsSubscriber }) {
                     <h3 className="card-title">{article.title}</h3>
                     <p className="card-excerpt">{getExcerpt(article.content)}</p>
                     <span className="card-read-more">
-                      {isPaywalled ? '🔒 Unlock' : 'Read Story'}
+                      {isCardBlurred ? '🔒 Subscribe to Unlock' : (!isSubscriber ? 'Read Story (Preview)' : 'Read Story')}
                     </span>
                   </div>
                 </article>
@@ -452,7 +452,7 @@ export default function HomeClient({ initialCover, initialIsSubscriber }) {
               <>
                 <h2>Receive the Print &amp; Digital Editions</h2>
                 <p>
-                  Subscribe for ₦3,500 to receive full access to our digital premium archives and weekly digests.{' '}
+                  Subscribe for ₦2,500 for bi-monthly access to receive full access to our digital premium archives, complete issues, and exclusive events.{' '}
                   <Link
                     href="/shop"
                     style={{
@@ -576,7 +576,7 @@ export default function HomeClient({ initialCover, initialIsSubscriber }) {
         </button>
         <div className="reader-content-wrapper">
           {selectedArticle && (() => {
-            const isReaderPaywalled = !isSubscriber && selectedArticle.order >= 2;
+            const isReaderPaywalled = !isSubscriber;
 
             return (
               <article className="reader-article">
@@ -596,9 +596,9 @@ export default function HomeClient({ initialCover, initialIsSubscriber }) {
                   <div className="reader-paywall-container">
                     <div
                       className="reader-body"
-                      style={{ filter: 'blur(5px)', opacity: 0.35, pointerEvents: 'none', userSelect: 'none' }}
+                      style={{ opacity: 0.6, userSelect: 'none' }}
                       dangerouslySetInnerHTML={{
-                        __html: selectedArticle.content.substring(0, Math.min(250, selectedArticle.content.length)) + '...'
+                        __html: selectedArticle.content || '<p>Exclusive editorial piece preview...</p>'
                       }}
                     ></div>
                     <div className="reader-paywall-overlay">
@@ -607,8 +607,8 @@ export default function HomeClient({ initialCover, initialIsSubscriber }) {
                           <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
                           <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
                         </svg>
-                        <h3>Subscribe to keep reading</h3>
-                        <p>This premium story requires an active digital subscription. Unlock all issues and our premium digital archive today.</p>
+                        <h3>Subscribe to Read Full Story</h3>
+                        <p>This story requires an active digital subscription. Subscribe for ₦2,500 to unlock full issues, articles, and our complete archives for 2 months.</p>
                         <button
                           className="paywall-btn"
                           onClick={() => {
@@ -619,7 +619,7 @@ export default function HomeClient({ initialCover, initialIsSubscriber }) {
                             }
                           }}
                         >
-                          Unlock Now — ₦3,500
+                          Unlock Now — ₦2,500
                         </button>
                       </div>
                     </div>
@@ -631,8 +631,8 @@ export default function HomeClient({ initialCover, initialIsSubscriber }) {
                   ></div>
                 )}
 
-                {/* Comments Section - Only show for non-paywalled articles */}
-                {(!(!isSubscriber && selectedArticle.order >= 2)) && (
+                {/* Comments Section - Only show for subscribers */}
+                {isSubscriber && (
                   <Comments articleId={selectedArticle.id} />
                 )}
               </article>

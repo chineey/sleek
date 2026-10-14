@@ -21,7 +21,7 @@ export async function GET(req) {
           const sub = await prisma.subscriber.findUnique({
             where: { email: payload.email },
           });
-          if (sub?.status === 'active') {
+          if (sub?.status === 'active' && (!sub.expiresAt || new Date() <= sub.expiresAt)) {
             isSubscriber = true;
           }
         }
@@ -34,22 +34,24 @@ export async function GET(req) {
       },
     });
 
-    // Server-side paywall: protect premium stories (order >= 2) from unauthenticated scraping
+    // Unsubscribed users can see all articles, but cannot read all (only preview). Sleek Peak is fully gated.
     const sanitizedArticles = articles.map((art) => {
-      const isPaywalled = art.order >= 2;
-      if (isPaywalled && !isSubscriber) {
-        const previewContent = art.content
-          ? art.content.substring(0, Math.min(250, art.content.length)) + '...'
-          : '';
+      const isSleekPeak = art.category?.toLowerCase().replace(/\s+/g, '') === 'sleekpeak';
+      if (!isSubscriber) {
+        const previewContent = isSleekPeak
+          ? ''
+          : (art.content ? art.content.substring(0, Math.min(300, art.content.length)) + '...' : '');
         return {
           ...art,
           content: previewContent,
           isPaywalled: true,
+          isSleekPeak,
         };
       }
       return {
         ...art,
         isPaywalled: false,
+        isSleekPeak,
       };
     });
 
