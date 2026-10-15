@@ -1,30 +1,87 @@
 .container {
   max-width: 100%;
-  margin: 40px 0;
-  padding: 0 20px;
+  margin: 40px 0 20px;
+  padding: 0;
 }
 
 .title {
   margin: 0 0 24px;
-  font-size: 20px;
-  font-weight: 600;
-  color: #111;
+  font-family: var(--font-serif);
+  font-size: 1.5rem;
+  font-weight: 400;
+  color: var(--color-bronze, #ba9c87);
+  letter-spacing: 0.05em;
 }
 
-.loginPrompt {
-  font-size: 14px;
-  color: #666;
-  text-align: center;
-  padding: 24px;
-  background: #f9f9f7;
+.subscribeBox {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 1.5rem;
+  padding: 1.75rem;
+  background-color: var(--color-black-card, #141414);
+  border: 1px dashed var(--color-border, #333);
   border-radius: 8px;
+  margin-bottom: 2rem;
+  flex-wrap: wrap;
+}
+
+.subscribeContent {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  flex: 1;
+  min-width: 250px;
+}
+
+.subscribeIcon {
+  color: var(--color-bronze, #ba9c87);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.subscribeTitle {
+  margin: 0 0 0.35rem 0;
+  font-family: var(--font-serif);
+  font-size: 1.15rem;
+  color: var(--color-white, #fff);
+  font-weight: 500;
+}
+
+.subscribeText {
   margin: 0;
+  font-size: 0.85rem;
+  color: var(--color-muted, #888);
+  line-height: 1.45;
+}
+
+.subscribeBtn {
+  padding: 0.75rem 1.75rem;
+  background-color: var(--color-bronze, #ba9c87);
+  color: var(--color-black, #0c0c0c);
+  border: none;
+  border-radius: 4px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  white-space: nowrap;
+}
+
+.subscribeBtn:hover {
+  background-color: var(--color-white, #fff);
+  transform: translateY(-2px);
 }
 
 .formSection {
   margin-bottom: 32px;
   padding: 20px;
-  background: #fafaf8;
+  background: var(--color-black-card, #141414);
+  border: 1px solid var(--color-border, #262626);
   border-radius: 8px;
 }
 
@@ -37,29 +94,30 @@
 .textarea {
   width: 100%;
   padding: 12px 16px;
-  border: 2px solid #eee;
+  background: #0c0c0c;
+  border: 1px solid var(--color-border, #333);
   border-radius: 8px;
   font-size: 14px;
   font-family: inherit;
   resize: vertical;
   transition: all 0.2s;
-  color: #333;
+  color: var(--color-white, #fff);
 }
 
 .textarea:focus {
   outline: none;
-  border-color: #ba9c87;
-  background: white;
+  border-color: var(--color-bronze, #ba9c87);
+  background: #111;
 }
 
 .textarea:disabled {
-  background: #f0f0f0;
-  color: #999;
+  background: #1a1a1a;
+  color: #666;
   cursor: not-allowed;
 }
 
 .textarea::placeholder {
-  color: #999;
+  color: var(--color-muted, #777);
 }
 
 .formActions {
@@ -71,27 +129,27 @@
 
 .submitBtn {
   padding: 10px 24px;
-  background: #ba9c87;
-  color: white;
+  background: var(--color-bronze, #ba9c87);
+  color: var(--color-black, #0c0c0c);
   border: none;
-  border-radius: 6px;
-  font-size: 13px;
-  font-weight: 600;
+  border-radius: 4px;
+  font-size: 12px;
+  font-weight: 700;
   cursor: pointer;
   transition: all 0.2s;
   text-transform: uppercase;
-  letter-spacing: 0.5px;
+  letter-spacing: 0.1em;
   white-space: nowrap;
 }
 
 .submitBtn:hover:not(:disabled) {
-  background: #a08570;
+  background: var(--color-white, #fff);
   transform: translateY(-2px);
 }
 
 .submitBtn:disabled {
-  background: #ddd;
-  color: #999;
+  background: #333;
+  color: #777;
   cursor: not-allowed;
 }
 
@@ -99,13 +157,13 @@
 .displayNameInfo {
   margin: 0;
   font-size: 12px;
-  color: #666;
+  color: var(--color-muted, #888);
   text-align: right;
   flex: 1;
 }
 
 .displayNameInfo strong {
-  color: #ba9c87;
+  color: var(--color-bronze, #ba9c87);
   font-weight: 600;
 }
 
@@ -118,7 +176,7 @@
 .loadingText,
 .noComments {
   text-align: center;
-  color: #999;
+  color: var(--color-muted, #888);
   font-size: 14px;
   padding: 24px;
   margin: 0;
@@ -126,15 +184,14 @@
 
 .comment {
   padding: 16px;
-  background: white;
-  border: 1px solid #eee;
+  background: var(--color-black-card, #141414);
+  border: 1px solid var(--color-border, #262626);
   border-radius: 8px;
   transition: all 0.2s;
 }
 
 .comment:hover {
-  border-color: #ba9c87;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+  border-color: rgba(186, 156, 135, 0.4);
 }
 
 .commentHeader {
@@ -148,41 +205,42 @@
 
 .displayName {
   font-weight: 600;
-  color: #ba9c87;
+  color: var(--color-bronze, #ba9c87);
   font-size: 14px;
 }
 
 .timestamp {
   font-size: 12px;
-  color: #999;
+  color: var(--color-muted, #777);
 }
 
 .commentContent {
   margin: 0;
-  color: #333;
+  color: rgba(255, 255, 255, 0.9);
   font-size: 14px;
-  line-height: 1.5;
+  line-height: 1.55;
   word-break: break-word;
 }
 
 .replyBtn {
   margin-top: 12px;
-  padding: 6px 12px;
+  padding: 5px 12px;
   background: transparent;
-  color: #ba9c87;
-  border: 1px solid #ba9c87;
+  color: var(--color-bronze, #ba9c87);
+  border: 1px solid rgba(186, 156, 135, 0.4);
   border-radius: 4px;
-  font-size: 12px;
+  font-size: 11px;
   font-weight: 600;
   cursor: pointer;
   transition: all 0.2s;
   text-transform: uppercase;
-  letter-spacing: 0.5px;
+  letter-spacing: 0.08em;
 }
 
 .replyBtn:hover {
-  background: #ba9c87;
-  color: white;
+  background: var(--color-bronze, #ba9c87);
+  color: var(--color-black, #0c0c0c);
+  border-color: var(--color-bronze, #ba9c87);
 }
 
 .commentThread {
@@ -194,23 +252,22 @@
 
 .repliesContainer {
   margin-left: 24px;
-  padding-left: 12px;
-  border-left: 2px solid #eee;
+  padding-left: 14px;
+  border-left: 2px solid rgba(186, 156, 135, 0.3);
   display: flex;
   flex-direction: column;
   gap: 12px;
 }
 
 .reply {
-  padding: 12px;
-  background: #fafaf8;
-  border: 1px solid #eee;
+  padding: 12px 14px;
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid var(--color-border, #262626);
   border-radius: 6px;
 }
 
 .reply:hover {
-  border-color: #ba9c87;
-  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.03);
+  border-color: rgba(186, 156, 135, 0.3);
 }
 
 .replyHeader {
@@ -224,51 +281,52 @@
 
 .replyContent {
   margin: 0;
-  color: #333;
+  color: rgba(255, 255, 255, 0.85);
   font-size: 13px;
   line-height: 1.5;
   word-break: break-word;
 }
 
 .replyForm {
-  padding: 12px;
-  background: #fafaf8;
-  border: 1px solid #e0e0e0;
+  padding: 14px;
+  background: var(--color-black-card, #141414);
+  border: 1px solid rgba(186, 156, 135, 0.4);
   border-radius: 6px;
   margin-left: 24px;
 }
 
 .replyLabel {
-  font-size: 12px;
-  color: #ba9c87;
+  font-size: 11px;
+  color: var(--color-bronze, #ba9c87);
   font-weight: 600;
   margin-bottom: 8px;
   text-transform: uppercase;
-  letter-spacing: 0.5px;
+  letter-spacing: 0.08em;
 }
 
 .replyTextarea {
   width: 100%;
   padding: 8px 12px;
-  border: 1px solid #ddd;
+  background: #0c0c0c;
+  border: 1px solid var(--color-border, #333);
   border-radius: 4px;
   font-size: 13px;
   font-family: inherit;
   resize: vertical;
   transition: all 0.2s;
-  color: #333;
+  color: var(--color-white, #fff);
   margin-bottom: 8px;
 }
 
 .replyTextarea:focus {
   outline: none;
-  border-color: #ba9c87;
-  background: white;
+  border-color: var(--color-bronze, #ba9c87);
+  background: #111;
 }
 
 .replyTextarea:disabled {
-  background: #f0f0f0;
-  color: #999;
+  background: #1a1a1a;
+  color: #666;
   cursor: not-allowed;
 }
 
@@ -278,32 +336,39 @@
 }
 
 .cancelBtn {
-  padding: 6px 12px;
-  background: #e0e0e0;
-  color: #666;
-  border: none;
+  padding: 6px 14px;
+  background: transparent;
+  color: var(--color-muted, #888);
+  border: 1px solid var(--color-border, #333);
   border-radius: 4px;
-  font-size: 12px;
+  font-size: 11px;
   font-weight: 600;
   cursor: pointer;
   transition: all 0.2s;
   text-transform: uppercase;
-  letter-spacing: 0.5px;
+  letter-spacing: 0.08em;
 }
 
 .cancelBtn:hover:not(:disabled) {
-  background: #d0d0d0;
+  color: var(--color-white, #fff);
+  border-color: #666;
 }
 
 .cancelBtn:disabled {
-  color: #999;
+  color: #666;
   cursor: not-allowed;
 }
 
 /* Mobile */
 @media (max-width: 640px) {
-  .container {
-    padding: 0 12px;
+  .subscribeBox {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .subscribeBtn {
+    width: 100%;
+    text-align: center;
   }
 
   .formActions {

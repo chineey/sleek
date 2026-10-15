@@ -1602,6 +1602,43 @@ img {
     font-style: italic;
 }
 
+.reader-join-conversation-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.6rem;
+    margin: 0.75rem auto 0;
+    background: rgba(200, 150, 102, 0.08);
+    border: 1px solid rgba(200, 150, 102, 0.28);
+    padding: 0.55rem 1.35rem;
+    border-radius: 9999px;
+    color: var(--color-bronze);
+    font-size: 0.8rem;
+    font-weight: 600;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    cursor: pointer;
+    transition: var(--transition-fast);
+    width: fit-content;
+}
+
+.reader-join-conversation-btn:hover {
+    background: rgba(200, 150, 102, 0.18);
+    border-color: var(--color-bronze);
+    color: var(--color-white);
+    transform: translateY(2px);
+    box-shadow: 0 4px 15px rgba(200, 150, 102, 0.15);
+}
+
+.reader-join-conversation-btn svg {
+    transition: transform 0.2s ease;
+}
+
+.reader-join-conversation-btn:hover svg {
+    transform: translateY(2px);
+}
+
+
 .reader-cover-img {
     width: 100%;
     aspect-ratio: 16/9;

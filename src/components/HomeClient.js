@@ -203,6 +203,20 @@ export default function HomeClient({ initialCover, initialIsSubscriber }) {
     }
   };
 
+  // Scroll to comments inside reader modal
+  const scrollToComments = () => {
+    const commentsEl = document.getElementById('article-comments-section');
+    if (commentsEl) {
+      commentsEl.scrollIntoView({ behavior: 'smooth' });
+      setTimeout(() => {
+        const textarea = commentsEl.querySelector('textarea');
+        if (textarea && !textarea.disabled) {
+          textarea.focus();
+        }
+      }, 500);
+    }
+  };
+
   // Subscribe Newsletter Handler (now handles Paystack subscription)
   const handleSubscribe = async (e) => {
     e.preventDefault();
@@ -705,6 +719,17 @@ export default function HomeClient({ initialCover, initialIsSubscriber }) {
                   <div className="reader-author-date">
                     {selectedArticle.author} &bull; {selectedArticle.date}
                   </div>
+                  <button
+                    type="button"
+                    className="reader-join-conversation-btn"
+                    onClick={scrollToComments}
+                    aria-label="Join the conversation and leave a comment"
+                  >
+                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75">
+                      <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
+                    </svg>
+                    Join the conversation and leave a comment &darr;
+                  </button>
                 </div>
                 <div
                   className="reader-cover-img"
@@ -750,10 +775,10 @@ export default function HomeClient({ initialCover, initialIsSubscriber }) {
                   ></div>
                 )}
 
-                {/* Comments Section - Only show for subscribers */}
-                {isSubscriber && (
-                  <Comments articleId={selectedArticle.id} />
-                )}
+                {/* Comments Section - Accessible to all readers */}
+                <div id="article-comments-section" style={{ marginTop: '4rem', paddingTop: '2.5rem', borderTop: '1px solid var(--color-border)' }}>
+                  <Comments articleId={selectedArticle.id} initialIsSubscriber={isSubscriber} />
+                </div>
               </article>
             );
           })()}

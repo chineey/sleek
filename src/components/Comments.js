@@ -4,11 +4,11 @@ import { useState, useEffect } from 'react';
 import DisplayNameModal from './DisplayNameModal';
 import styles from './Comments.module.css';
 
-export default function Comments({ articleId }) {
+export default function Comments({ articleId, initialIsSubscriber }) {
   const [comments, setComments] = useState([]);
   const [displayName, setDisplayName] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [isSubscriber, setIsSubscriber] = useState(false);
+  const [isSubscriber, setIsSubscriber] = useState(initialIsSubscriber ?? false);
   const [showModal, setShowModal] = useState(false);
   const [commentText, setCommentText] = useState('');
   const [submitting, setSubmitting] = useState(false);
@@ -16,12 +16,12 @@ export default function Comments({ articleId }) {
   const [replyingTo, setReplyingTo] = useState(null);
   const [replyText, setReplyText] = useState('');
 
-  // Load comments and current user's display name
+  // Load comments and current user's subscriber status / display name
   useEffect(() => {
     const fetchData = async () => {
       setLoading(true);
       try {
-        // Fetch comments
+        // Fetch comments for all users
         const commentsRes = await fetch(`/api/comments/${articleId}`);
         if (commentsRes.ok) {
           const data = await commentsRes.json();
@@ -62,7 +62,7 @@ export default function Comments({ articleId }) {
     }
   };
 
-  const handleReplyClick = (parentCommentId, parentDisplayName) => {
+  const handleReplyClick = (parentCommentId) => {
     if (!displayName) {
       setPendingComment({ text: replyText, parentCommentId });
       setShowModal(true);
@@ -78,6 +78,22 @@ export default function Comments({ articleId }) {
       await submitComment(pendingComment.text, pendingComment.parentCommentId);
       setPendingComment(null);
     }
+  };
+
+  const scrollToSubscribe = () => {
+    // If reader modal is active, close it so the user can see the subscribe section
+    const readerCloseBtn = document.querySelector('.reader-close-btn');
+    if (readerCloseBtn && document.querySelector('.reader-modal.active')) {
+      readerCloseBtn.click();
+    }
+    setTimeout(() => {
+      const subSection = document.getElementById('subscribe');
+      if (subSection) {
+        subSection.scrollIntoView({ behavior: 'smooth' });
+      } else {
+        window.location.href = '/#subscribe';
+      }
+    }, 150);
   };
 
   const submitComment = async (text = commentText, parentCommentId = null) => {
@@ -130,67 +146,76 @@ export default function Comments({ articleId }) {
     }
   };
 
-  if (loading) {
-    return (
-      <div className={styles.container}>
-        <h3 className={styles.title}>Comments</h3>
-        <p className={styles.loadingText}>Loading...</p>
-      </div>
-    );
-  }
-
-  if (!isSubscriber) {
-    return (
-      <div className={styles.container}>
-        <h3 className={styles.title}>Comments</h3>
-        <p className={styles.loginPrompt}>Sign in to read and post comments</p>
-      </div>
-    );
-  }
-
   return (
     <div className={styles.container}>
-      <h3 className={styles.title}>Comments ({comments.length}){replyingTo && ' - Replying'}</h3>
+      <h3 className={styles.title}>
+        Conversation ({comments.length}){replyingTo && ' - Replying'}
+      </h3>
 
-      {/* Comment Form */}
-      <div className={styles.formSection}>
-        <div className={styles.form}>
-          <textarea
-            value={commentText}
-            onChange={(e) => setCommentText(e.target.value)}
-            placeholder="Share your thoughts..."
-            className={styles.textarea}
-            disabled={submitting}
-            rows="3"
-          />
-          <div className={styles.formActions}>
-            <button
-              onClick={() => handleCommentClick()}
-              disabled={!commentText.trim() || submitting || loading}
-              className={styles.submitBtn}
-            >
-              {submitting ? 'Posting...' : 'Post Comment'}
-            </button>
-            {!displayName && (
-              <p className={styles.hint}>
-                You'll set a display name when you post your first comment
+      {/* Comment Form for Subscribers / Prompt for Non-Subscribers */}
+      {!isSubscriber ? (
+        <div className={styles.subscribeBox}>
+          <div className={styles.subscribeContent}>
+            <div className={styles.subscribeIcon}>
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
+                <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
+              </svg>
+            </div>
+            <div>
+              <h4 className={styles.subscribeTitle}>Join the Conversation</h4>
+              <p className={styles.subscribeText}>
+                Subscribe to leave a comment, reply to readers, and take part in the discussion.
               </p>
-            )}
-            {displayName && (
-              <p className={styles.displayNameInfo}>
-                Posting as: <strong>{displayName}</strong>
-              </p>
-            )}
+            </div>
+          </div>
+          <button
+            type="button"
+            className={styles.subscribeBtn}
+            onClick={scrollToSubscribe}
+          >
+            Subscribe to Comment &rarr;
+          </button>
+        </div>
+      ) : (
+        <div className={styles.formSection}>
+          <div className={styles.form}>
+            <textarea
+              value={commentText}
+              onChange={(e) => setCommentText(e.target.value)}
+              placeholder="Share your thoughts..."
+              className={styles.textarea}
+              disabled={submitting}
+              rows="3"
+            />
+            <div className={styles.formActions}>
+              <button
+                onClick={() => handleCommentClick()}
+                disabled={!commentText.trim() || submitting || loading}
+                className={styles.submitBtn}
+              >
+                {submitting ? 'Posting...' : 'Post Comment'}
+              </button>
+              {!displayName && (
+                <p className={styles.hint}>
+                  You'll set a display name when you post your first comment
+                </p>
+              )}
+              {displayName && (
+                <p className={styles.displayNameInfo}>
+                  Posting as: <strong>{displayName}</strong>
+                </p>
+              )}
+            </div>
           </div>
         </div>
-      </div>
+      )}
 
-      {/* Comments List */}
+      {/* Comments List - Visible to all */}
       <div className={styles.commentsList}>
         {loading ? (
           <p className={styles.loadingText}>Loading comments...</p>
         ) : comments.length === 0 ? (
-          <p className={styles.noComments}>No comments yet. Be the first to comment!</p>
+          <p className={styles.noComments}>No comments yet. Be the first to share your perspective!</p>
         ) : (
           comments.map((comment) => (
             <div key={comment.id} className={styles.commentThread}>
@@ -204,15 +229,22 @@ export default function Comments({ articleId }) {
                 </div>
                 <p className={styles.commentContent}>{comment.content}</p>
                 <button
+                  type="button"
                   className={styles.replyBtn}
-                  onClick={() => setReplyingTo(replyingTo === comment.id ? null : comment.id)}
+                  onClick={() => {
+                    if (!isSubscriber) {
+                      scrollToSubscribe();
+                      return;
+                    }
+                    setReplyingTo(replyingTo === comment.id ? null : comment.id);
+                  }}
                 >
-                  Reply
+                  {isSubscriber && replyingTo === comment.id ? 'Cancel' : 'Reply'}
                 </button>
               </div>
 
-              {/* Reply Form */}
-              {replyingTo === comment.id && (
+              {/* Reply Form (Subscribers Only) */}
+              {isSubscriber && replyingTo === comment.id && (
                 <div className={styles.replyForm}>
                   <div className={styles.replyLabel}>Replying to {comment.displayName}</div>
                   <textarea
