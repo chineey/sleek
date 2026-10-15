@@ -38,6 +38,7 @@ export default function Admin() {
   const [pendingFile, setPendingFile] = useState(null);
   const [zoom, setZoom] = useState(1.0);
   const [offset, setOffset] = useState({ x: 0, y: 0 });
+  const [imageAspect, setImageAspect] = useState(4 / 3);
   const [isDragging, setIsDragging] = useState(false);
   const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
 
@@ -639,10 +640,19 @@ export default function Admin() {
     setPendingFile(file);
 
     const objectUrl = URL.createObjectURL(file);
-    setCropImageSrc(objectUrl);
+    const testImg = new Image();
+    testImg.onload = () => {
+      if (testImg.naturalWidth && testImg.naturalHeight) {
+        setImageAspect(testImg.naturalWidth / testImg.naturalHeight);
+      }
+    };
+    testImg.src = objectUrl;
 
+    setCropImageSrc(objectUrl);
     setZoom(1.0);
     setOffset({ x: 0, y: 0 });
+    // Reset file input so selecting the same file triggers onChange
+    e.target.value = '';
   };
 
   // Drag-and-pan mouse event handlers for crop preview
@@ -689,23 +699,11 @@ export default function Admin() {
 
     try {
       const img = document.getElementById('crop-target-img');
-      if (!img) {
+      const viewport = document.querySelector('.crop-viewport');
+      if (!img || !viewport) {
         setIsUploading(false);
         return;
       }
-
-      // The viewport is responsive.
-      // The canvas output is 1200x900 (articles), 900x1600 (products), or 1600x1000 (cover Settings).
-      const viewport = document.querySelector('.crop-viewport');
-      const vpW = viewport ? viewport.clientWidth : 400;
-      const vpH = viewport ? viewport.clientHeight : 300;
-
-      const nw = img.naturalWidth || 1200;
-      const nh = img.naturalHeight || 900;
-      // How the browser fits the image into the viewport via max-width/max-height
-      const fitRatio = Math.min(vpW / nw, vpH / nh);
-      const displayW = nw * fitRatio;
-      const displayH = nh * fitRatio;
 
       const isCoverTab = activeTab === 'cover';
 
@@ -713,28 +711,28 @@ export default function Admin() {
       const canvasWidth = isCoverTab ? 1600 : 1200;
       const canvasHeight = isCoverTab ? 1000 : 900;
 
+      // Extract exact subpixel bounds from DOM bounding boxes
+      const vpRect = viewport.getBoundingClientRect();
+      const imgRect = img.getBoundingClientRect();
+
+      // Uniform scaling factor mapping screen pixels to high-res canvas pixels (preserves 1:1 aspect ratio)
+      const scale = canvasWidth / vpRect.width;
+
       const canvas = document.createElement('canvas');
       canvas.width = canvasWidth;
       canvas.height = canvasHeight;
       const ctx = canvas.getContext('2d');
-      ctx.clearRect(0, 0, canvasWidth, canvasHeight);
 
-      // Scale factor from viewport to canvas
-      const scaleX = canvasWidth / vpW;
-      const scaleY = canvasHeight / vpH;
+      ctx.imageSmoothingEnabled = true;
+      ctx.imageSmoothingQuality = 'high';
 
-      ctx.save();
-      // Scale viewport coordinates → canvas coordinates
-      ctx.scale(scaleX, scaleY);
-      // Move origin to viewport center
-      ctx.translate(vpW / 2, vpH / 2);
-      // CSS translate(ox, oy) — applied in screen space after scale
-      ctx.translate(offset.x, offset.y);
-      // CSS scale(zoom) — applied around transform-origin (element center)
-      ctx.scale(zoom, zoom);
-      // Draw image centered at origin (matching the CSS centering via margin:auto)
-      ctx.drawImage(img, -displayW / 2, -displayH / 2, displayW, displayH);
-      ctx.restore();
+      // Calculate destination coordinates with 100% aspect ratio fidelity
+      const destX = (imgRect.left - vpRect.left) * scale;
+      const destY = (imgRect.top - vpRect.top) * scale;
+      const destW = imgRect.width * scale;
+      const destH = imgRect.height * scale;
+
+      ctx.drawImage(img, destX, destY, destW, destH);
 
       const fileName = pendingFile.name || 'cropped-image.jpg';
 
@@ -784,7 +782,7 @@ export default function Admin() {
           }
         },
         'image/jpeg',
-        0.9
+        0.92
       );
     } catch (err) {
       console.error('handleConfirmCrop error:', err);
@@ -796,6 +794,8 @@ export default function Admin() {
   const handleCancelCrop = () => {
     setCropImageSrc('');
     setPendingFile(null);
+    setZoom(1.0);
+    setOffset({ x: 0, y: 0 });
     setIsUploading(false);
   };
 
@@ -3255,25 +3255,37 @@ export default function Admin() {
                 cursor: 'move'
               }}
             >
-              <img
-                id="crop-target-img"
-                src={cropImageSrc}
-                alt="To Crop"
-                style={{
-                  transform: `translate(${offset.x}px, ${offset.y}px) scale(${zoom})`,
-                  transformOrigin: 'center center',
-                  userSelect: 'none',
-                  pointerEvents: 'none',
-                  maxWidth: '100%',
-                  maxHeight: '100%',
-                  position: 'absolute',
-                  top: 0,
-                  left: 0,
-                  right: 0,
-                  bottom: 0,
-                  margin: 'auto'
-                }}
-              />
+              {(() => {
+                const targetAspect = activeTab === 'cover' ? 16 / 10 : 4 / 3;
+                const aspect = imageAspect || targetAspect;
+                const isWider = aspect >= targetAspect;
+                return (
+                  <img
+                    id="crop-target-img"
+                    src={cropImageSrc}
+                    alt="To Crop"
+                    onLoad={(e) => {
+                      const nw = e.currentTarget.naturalWidth || 1200;
+                      const nh = e.currentTarget.naturalHeight || 900;
+                      setImageAspect(nw / nh);
+                    }}
+                    style={{
+                      position: 'absolute',
+                      top: '50%',
+                      left: '50%',
+                      width: isWider ? `${(aspect / targetAspect) * 100}%` : '100%',
+                      height: isWider ? '100%' : `${(targetAspect / aspect) * 100}%`,
+                      maxWidth: 'none',
+                      maxHeight: 'none',
+                      transform: `translate(calc(-50% + ${offset.x}px), calc(-50% + ${offset.y}px)) scale(${zoom})`,
+                      transformOrigin: 'center center',
+                      userSelect: 'none',
+                      pointerEvents: 'none',
+                      display: 'block'
+                    }}
+                  />
+                );
+              })()}
               {/* Guidelines */}
               <div style={{
                 position: 'absolute',
