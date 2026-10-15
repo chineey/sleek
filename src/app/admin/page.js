@@ -92,10 +92,17 @@ export default function Admin() {
   const [eventAddress, setEventAddress] = useState('');
   const [eventLat, setEventLat] = useState('');
   const [eventLng, setEventLng] = useState('');
+  const [eventTicketPrice, setEventTicketPrice] = useState('5000');
   const [eventDescription, setEventDescription] = useState('');
   const [eventImage, setEventImage] = useState('');
   const [eventActive, setEventActive] = useState(true);
   const [isLoadingEvents, setIsLoadingEvents] = useState(false);
+
+  // Event Tickets states
+  const [ticketsList, setTicketsList] = useState([]);
+  const [isLoadingTickets, setIsLoadingTickets] = useState(false);
+  const [ticketSearchQuery, setTicketSearchQuery] = useState('');
+  const [resendingTicketId, setResendingTicketId] = useState(null);
 
   // Fetch cover settings
   useEffect(() => {
@@ -400,6 +407,53 @@ export default function Admin() {
     }
   };
 
+  // Fetch event tickets
+  const fetchTickets = async () => {
+    setIsLoadingTickets(true);
+    try {
+      const res = await fetch('/api/tickets');
+      if (res.ok) {
+        const data = await res.json();
+        setTicketsList(data);
+      }
+    } catch (err) {
+      console.error('Failed to fetch event tickets:', err);
+    } finally {
+      setIsLoadingTickets(false);
+    }
+  };
+
+  // Resend ticket confirmation email
+  const handleResendTicketEmail = async (ticketId) => {
+    setResendingTicketId(ticketId);
+    setFeedback({ message: '', type: '' });
+    try {
+      const res = await fetch(`/api/tickets/${ticketId}/resend-email`, {
+        method: 'POST',
+      });
+      const data = await res.json();
+      if (res.ok && data.success) {
+        setFeedback({ message: data.message || 'Ticket email resent successfully!', type: 'success' });
+        if (data.ticket) {
+          setTicketsList((prev) =>
+            prev.map((t) => (t.id === ticketId ? data.ticket : t))
+          );
+        }
+      } else {
+        setFeedback({ message: data.message || 'Failed to resend ticket email.', type: 'error' });
+        if (data.ticket) {
+          setTicketsList((prev) =>
+            prev.map((t) => (t.id === ticketId ? data.ticket : t))
+          );
+        }
+      }
+    } catch (err) {
+      setFeedback({ message: 'Network error resending ticket email.', type: 'error' });
+    } finally {
+      setResendingTicketId(null);
+    }
+  };
+
   // Fetch events
   const fetchEvents = async () => {
     setIsLoadingEvents(true);
@@ -424,6 +478,7 @@ export default function Admin() {
     setEventAddress('');
     setEventLat('');
     setEventLng('');
+    setEventTicketPrice('5000');
     setEventDescription('');
     setEventImage('');
     setEventActive(true);
@@ -454,6 +509,7 @@ export default function Admin() {
       setEventAddress(selected.address);
       setEventLat(selected.latitude != null ? selected.latitude.toString() : '');
       setEventLng(selected.longitude != null ? selected.longitude.toString() : '');
+      setEventTicketPrice(selected.ticketPrice !== undefined && selected.ticketPrice !== null ? selected.ticketPrice.toString() : '5000');
       setEventDescription(selected.description);
       setEventImage(selected.image || '');
       setEventActive(selected.active);
@@ -493,6 +549,7 @@ export default function Admin() {
         address: eventAddress,
         latitude: latNum,
         longitude: lngNum,
+        ticketPrice: eventTicketPrice ? parseInt(eventTicketPrice, 10) : 5000,
         description: eventDescription,
         image: eventImage,
         active: eventActive,
@@ -1383,6 +1440,24 @@ export default function Admin() {
           }}
         >
           Shop Orders
+        </button>
+        <button
+          type="button"
+          onClick={() => { setActiveTab('tickets'); fetchTickets(); setFeedback({ message: '', type: '' }); }}
+          style={{
+            background: 'none',
+            border: 'none',
+            color: activeTab === 'tickets' ? 'var(--color-bronze)' : 'var(--color-muted)',
+            fontSize: '0.85rem',
+            fontWeight: 600,
+            letterSpacing: '0.15em',
+            padding: '1rem 0',
+            borderBottom: activeTab === 'tickets' ? '2px solid var(--color-bronze)' : '2px solid transparent',
+            cursor: 'pointer',
+            textTransform: 'uppercase'
+          }}
+        >
+          Event Tickets
         </button>
         <button
           type="button"
@@ -2376,6 +2451,169 @@ export default function Admin() {
             </div>
           )}
         </div>
+      ) : activeTab === 'tickets' ? (
+        <div style={{ maxWidth: '1200px', margin: '0 auto', padding: '1rem 0 4rem' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem', flexWrap: 'wrap', gap: '1rem' }}>
+            <div>
+              <h2 style={{ fontSize: '1.5rem', color: 'var(--color-white)', margin: '0 0 0.25rem 0', fontFamily: 'var(--font-serif)' }}>
+                Event Ticket Bookings
+              </h2>
+              <p style={{ color: 'var(--color-muted)', fontSize: '0.85rem', margin: 0 }}>
+                Live records of event attendees, ticket references, payments, and receipt delivery.
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={fetchTickets}
+              disabled={isLoadingTickets}
+              style={{
+                padding: '0.55rem 1.1rem',
+                backgroundColor: 'rgba(255, 255, 255, 0.05)',
+                color: 'var(--color-white)',
+                border: '1px solid var(--color-border)',
+                borderRadius: '4px',
+                fontSize: '0.8rem',
+                cursor: isLoadingTickets ? 'not-allowed' : 'pointer',
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '0.5rem',
+              }}
+            >
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <polyline points="23 4 23 10 17 10"></polyline>
+                <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"></path>
+              </svg>
+              {isLoadingTickets ? 'Refreshing...' : 'Refresh Bookings'}
+            </button>
+          </div>
+
+          <div style={{ marginBottom: '1.5rem' }}>
+            <input
+              type="text"
+              placeholder="Search by Ticket Ref, Email, or Event Title..."
+              value={ticketSearchQuery}
+              onChange={(e) => setTicketSearchQuery(e.target.value)}
+              style={{
+                width: '100%',
+                maxWidth: '450px',
+                padding: '0.65rem 1rem',
+                backgroundColor: 'rgba(0, 0, 0, 0.4)',
+                border: '1px solid var(--color-border)',
+                borderRadius: '4px',
+                color: '#fff',
+                fontSize: '0.85rem',
+                outline: 'none',
+              }}
+            />
+          </div>
+
+          {isLoadingTickets ? (
+            <div style={{ textAlign: 'center', padding: '3rem', color: 'var(--color-muted)' }}>
+              Loading event tickets...
+            </div>
+          ) : ticketsList.length === 0 ? (
+            <div style={{ textAlign: 'center', padding: '3rem', color: 'var(--color-muted)', border: '1px dashed var(--color-border)', borderRadius: '8px' }}>
+              No event ticket bookings found yet.
+            </div>
+          ) : (
+            <div style={{ overflowX: 'auto', border: '1px solid var(--color-border)', borderRadius: '6px' }}>
+              <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.85rem' }}>
+                <thead>
+                  <tr style={{ backgroundColor: 'rgba(255, 255, 255, 0.03)', borderBottom: '1px solid var(--color-border)', color: 'var(--color-bronze)' }}>
+                    <th style={{ padding: '0.85rem 1rem' }}>Ticket Ref</th>
+                    <th style={{ padding: '0.85rem 1rem' }}>Attendee Email</th>
+                    <th style={{ padding: '0.85rem 1rem' }}>Event Title</th>
+                    <th style={{ padding: '0.85rem 1rem' }}>Date &amp; Venue</th>
+                    <th style={{ padding: '0.85rem 1rem' }}>Tickets &bull; Total</th>
+                    <th style={{ padding: '0.85rem 1rem' }}>Payment</th>
+                    <th style={{ padding: '0.85rem 1rem' }}>Receipt Email</th>
+                    <th style={{ padding: '0.85rem 1rem', textAlign: 'right' }}>Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {ticketsList
+                    .filter((t) => {
+                      if (!ticketSearchQuery) return true;
+                      const q = ticketSearchQuery.toLowerCase();
+                      return (
+                        (t.ticketReference && t.ticketReference.toLowerCase().includes(q)) ||
+                        (t.email && t.email.toLowerCase().includes(q)) ||
+                        (t.eventTitle && t.eventTitle.toLowerCase().includes(q)) ||
+                        (t.eventLocation && t.eventLocation.toLowerCase().includes(q))
+                      );
+                    })
+                    .map((ticket) => (
+                      <tr key={ticket.id} style={{ borderBottom: '1px solid var(--color-border)' }}>
+                        <td style={{ padding: '0.85rem 1rem', fontFamily: 'monospace', fontWeight: 600, color: 'var(--color-bronze)' }}>
+                          #{ticket.ticketReference}
+                        </td>
+                        <td style={{ padding: '0.85rem 1rem', color: '#fff' }}>
+                          {ticket.email}
+                        </td>
+                        <td style={{ padding: '0.85rem 1rem', color: 'var(--color-ivory)', fontWeight: 600 }}>
+                          {ticket.eventTitle}
+                        </td>
+                        <td style={{ padding: '0.85rem 1rem', color: 'var(--color-muted)' }}>
+                          <div>{new Date(ticket.eventDate).toLocaleDateString()}</div>
+                          <small style={{ color: 'var(--color-muted)' }}>{ticket.eventLocation}</small>
+                        </td>
+                        <td style={{ padding: '0.85rem 1rem', color: '#fff', fontWeight: 600 }}>
+                          {ticket.quantity} Ticket{ticket.quantity > 1 ? 's' : ''} &bull; ₦{Number(ticket.totalPrice || 0).toLocaleString()}
+                        </td>
+                        <td style={{ padding: '0.85rem 1rem' }}>
+                          <span style={{
+                            padding: '0.25rem 0.6rem',
+                            borderRadius: '4px',
+                            fontSize: '0.75rem',
+                            fontWeight: 600,
+                            textTransform: 'uppercase',
+                            backgroundColor: ticket.status === 'paid' ? 'rgba(74, 222, 128, 0.15)' : 'rgba(234, 179, 8, 0.15)',
+                            color: ticket.status === 'paid' ? '#4ade80' : '#eab308',
+                            border: `1px solid ${ticket.status === 'paid' ? 'rgba(74, 222, 128, 0.3)' : 'rgba(234, 179, 8, 0.3)'}`,
+                          }}>
+                            {ticket.status}
+                          </span>
+                        </td>
+                        <td style={{ padding: '0.85rem 1rem' }}>
+                          <span style={{
+                            padding: '0.25rem 0.6rem',
+                            borderRadius: '4px',
+                            fontSize: '0.75rem',
+                            fontWeight: 600,
+                            textTransform: 'uppercase',
+                            backgroundColor: ticket.emailStatus === 'sent' ? 'rgba(74, 222, 128, 0.15)' : ticket.emailStatus === 'failed' ? 'rgba(239, 68, 68, 0.15)' : 'rgba(156, 163, 175, 0.15)',
+                            color: ticket.emailStatus === 'sent' ? '#4ade80' : ticket.emailStatus === 'failed' ? '#ef4444' : '#9ca3af',
+                            border: `1px solid ${ticket.emailStatus === 'sent' ? 'rgba(74, 222, 128, 0.3)' : ticket.emailStatus === 'failed' ? 'rgba(239, 68, 68, 0.3)' : 'rgba(156, 163, 175, 0.3)'}`,
+                          }}>
+                            {ticket.emailStatus}
+                          </span>
+                        </td>
+                        <td style={{ padding: '0.85rem 1rem', textAlign: 'right' }}>
+                          <button
+                            type="button"
+                            onClick={() => handleResendTicketEmail(ticket.id)}
+                            disabled={resendingTicketId === ticket.id}
+                            style={{
+                              padding: '0.4rem 0.8rem',
+                              fontSize: '0.75rem',
+                              backgroundColor: 'transparent',
+                              color: 'var(--color-bronze)',
+                              border: '1px solid var(--color-bronze)',
+                              borderRadius: '4px',
+                              cursor: resendingTicketId === ticket.id ? 'not-allowed' : 'pointer',
+                              whiteSpace: 'nowrap',
+                            }}
+                          >
+                            {resendingTicketId === ticket.id ? 'Sending...' : 'Resend Email'}
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
       ) : activeTab === 'products' ? (
         <>
           {/* Products Selector */}
@@ -2784,6 +3022,25 @@ export default function Admin() {
                       disabled={!selectedEventId || isSubmitting}
                     />
                   </div>
+                </div>
+
+                <div className="form-group">
+                  <label htmlFor="eventTicketPrice">Ticket Price (₦ Naira)</label>
+                  <input
+                    id="eventTicketPrice"
+                    type="number"
+                    min="0"
+                    step="500"
+                    className="form-input"
+                    value={eventTicketPrice}
+                    onChange={(e) => setEventTicketPrice(e.target.value)}
+                    required
+                    disabled={!selectedEventId || isSubmitting}
+                    placeholder="e.g. 5000"
+                  />
+                  <small style={{ color: 'var(--color-muted)', fontSize: '0.75rem', marginTop: '0.25rem', display: 'block' }}>
+                    Standard admission ticket price attendees will pay on checkout.
+                  </small>
                 </div>
 
                 <div className="form-group">

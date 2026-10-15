@@ -141,12 +141,40 @@ model Event {
   latitude    Float?         // Exact GPS Latitude (optional)
   longitude   Float?         // Exact GPS Longitude (optional)
   image       String         // 4:3 photo
+  ticketPrice Int            @default(5000)
   active      Boolean        @default(true)
   order       Int            @default(0)
   ratings     EventRating[]
   comments    EventComment[]
+  tickets     EventTicket[]
   createdAt   DateTime       @default(now())
   updatedAt   DateTime       @updatedAt
+}
+
+model EventTicket {
+  id                String   @id @default(uuid())
+  ticketReference   String   @unique
+  email             String
+  eventId           String
+  event             Event    @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  eventTitle        String
+  eventDate         DateTime
+  eventLocation     String
+  eventAddress      String
+  ticketPrice       Int
+  quantity          Int      @default(1)
+  totalPrice        Int
+  paystackReference String?  @unique
+  status            String   @default("pending") // "pending" | "paid" | "completed" | "cancelled"
+  emailStatus       String   @default("pending") // "pending" | "sent" | "failed"
+  emailError        String?  @db.Text
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  @@index([email])
+  @@index([eventId])
+  @@index([paystackReference])
+  @@index([ticketReference])
 }
 
 model EventRating {
@@ -174,4 +202,5 @@ model EventComment {
   @@index([subscriberId])
   @@index([parentCommentId])
 }
+
 

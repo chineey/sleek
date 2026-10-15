@@ -64,7 +64,7 @@ export async function POST(req) {
       return NextResponse.json({ error: 'Unauthorized. Admin session required.' }, { status: 401 });
     }
 
-    const { title, description, date, location, address, latitude, longitude, image, active } = await req.json();
+    const { title, description, date, location, address, latitude, longitude, image, ticketPrice, active } = await req.json();
 
     if (!title || !description || !date || !location || !address) {
       return NextResponse.json(
@@ -82,6 +82,7 @@ export async function POST(req) {
 
     const latNum = (latitude !== undefined && latitude !== null && latitude !== '') ? parseFloat(latitude) : null;
     const lngNum = (longitude !== undefined && longitude !== null && longitude !== '') ? parseFloat(longitude) : null;
+    const priceNum = (ticketPrice !== undefined && ticketPrice !== null && ticketPrice !== '') ? parseInt(ticketPrice, 10) : 5000;
 
     const event = await prisma.event.create({
       data: {
@@ -92,6 +93,7 @@ export async function POST(req) {
         address,
         latitude: latNum != null && !isNaN(latNum) ? latNum : null,
         longitude: lngNum != null && !isNaN(lngNum) ? lngNum : null,
+        ticketPrice: !isNaN(priceNum) ? priceNum : 5000,
         image: image || defaultEventImage,
         active: active !== false,
         order: nextOrder,
@@ -113,7 +115,7 @@ export async function PUT(req) {
       return NextResponse.json({ error: 'Unauthorized. Admin session required.' }, { status: 401 });
     }
 
-    const { id, title, description, date, location, address, latitude, longitude, image, active } = await req.json();
+    const { id, title, description, date, location, address, latitude, longitude, image, ticketPrice, active } = await req.json();
 
     if (!id || !title || !description || !date || !location || !address) {
       return NextResponse.json(
@@ -124,6 +126,7 @@ export async function PUT(req) {
 
     const latNum = (latitude !== undefined && latitude !== null && latitude !== '') ? parseFloat(latitude) : null;
     const lngNum = (longitude !== undefined && longitude !== null && longitude !== '') ? parseFloat(longitude) : null;
+    const priceNum = (ticketPrice !== undefined && ticketPrice !== null && ticketPrice !== '') ? parseInt(ticketPrice, 10) : undefined;
 
     const updated = await prisma.event.update({
       where: { id },
@@ -135,6 +138,7 @@ export async function PUT(req) {
         address,
         latitude: latNum != null && !isNaN(latNum) ? latNum : null,
         longitude: lngNum != null && !isNaN(lngNum) ? lngNum : null,
+        ...(priceNum !== undefined && !isNaN(priceNum) ? { ticketPrice: priceNum } : {}),
         ...(image ? { image } : {}),
         active: active !== false,
       },

@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import crypto from 'crypto';
 import prisma from '../../../../lib/prisma';
-import { sendSubscriptionConfirmationEmail, sendOrderConfirmationEmail } from '../../../../lib/email';
+import { sendSubscriptionConfirmationEmail, sendOrderConfirmationEmail, sendEventTicketEmail } from '../../../../lib/email';
 import { generateOrderReference } from '../../../../lib/orderReference';
 
 export async function POST(req) {
@@ -256,6 +256,108 @@ export async function POST(req) {
           console.log(`[WEBHOOK] Order #${orderRecord.orderReference} fulfilled successfully. Email status: ${emailStatus}`);
         } else {
           console.log(`[WEBHOOK] Confirmation email already sent for order #${orderRecord.orderReference}.`);
+        }
+      }
+      // 3. Event Ticket Flow
+      else if (metadata.payment_type === 'event_ticket' || metadata.ticketReference || metadata.eventId) {
+        console.log(`[WEBHOOK] Processing event ticket for: ${customerEmail}, Paystack Ref: ${reference}`);
+
+        let existingTicket = null;
+        if (reference) {
+          existingTicket = await prisma.eventTicket.findUnique({
+            where: { paystackReference: reference },
+          });
+        }
+
+        if (!existingTicket && metadata.ticketReference) {
+          existingTicket = await prisma.eventTicket.findUnique({
+            where: { ticketReference: metadata.ticketReference },
+          });
+        }
+
+        if (existingTicket && (existingTicket.status === 'paid' || existingTicket.status === 'completed')) {
+          console.log(`[WEBHOOK] Ticket #${existingTicket.ticketReference} is already processed (${existingTicket.status}). Skipping duplicate.`);
+          return NextResponse.json({ status: 'ok', message: 'Ticket already processed' });
+        }
+
+        const totalInNaira = metadata.totalPrice
+          ? parseInt(metadata.totalPrice, 10)
+          : Math.round((payload.data.amount || 0) / 100);
+
+        const qty = parseInt(metadata.quantity, 10) || 1;
+        const pricePerTicket = metadata.ticketPrice ? parseInt(metadata.ticketPrice, 10) : Math.round(totalInNaira / qty);
+        const ticketRef = existingTicket?.ticketReference || metadata.ticketReference || `SLK-TKT-${generateOrderReference(8)}`;
+
+        let ticketRecord;
+
+        if (existingTicket) {
+          ticketRecord = await prisma.eventTicket.update({
+            where: { id: existingTicket.id },
+            data: {
+              status: 'paid',
+              paystackReference: reference,
+              totalPrice: totalInNaira,
+            },
+          });
+        } else {
+          let eventDetails = null;
+          if (metadata.eventId) {
+            try {
+              eventDetails = await prisma.event.findUnique({ where: { id: metadata.eventId } });
+            } catch (err) {
+              console.warn('[WEBHOOK] Could not fetch event:', err);
+            }
+          }
+
+          ticketRecord = await prisma.eventTicket.create({
+            data: {
+              ticketReference: ticketRef,
+              email: customerEmail,
+              eventId: metadata.eventId || eventDetails?.id || '',
+              eventTitle: metadata.eventTitle || eventDetails?.title || 'SLEEK Event',
+              eventDate: eventDetails?.date || new Date(),
+              eventLocation: eventDetails?.location || 'SLEEK Venue',
+              eventAddress: eventDetails?.address || 'Venue Location',
+              ticketPrice: pricePerTicket,
+              quantity: qty,
+              totalPrice: totalInNaira,
+              paystackReference: reference,
+              status: 'paid',
+              emailStatus: 'pending',
+            },
+          });
+        }
+
+        if (ticketRecord.emailStatus !== 'sent') {
+          let emailStatus = 'pending';
+          let emailError = null;
+
+          try {
+            const emailRes = await sendEventTicketEmail({
+              ticketReference: ticketRecord.ticketReference,
+              email: ticketRecord.email,
+              eventTitle: ticketRecord.eventTitle,
+              eventDate: ticketRecord.eventDate,
+              eventLocation: ticketRecord.eventLocation,
+              eventAddress: ticketRecord.eventAddress,
+              ticketPrice: ticketRecord.ticketPrice,
+              quantity: ticketRecord.quantity,
+              totalPrice: ticketRecord.totalPrice,
+            });
+
+            emailStatus = emailRes?.ok ? 'sent' : 'failed';
+          } catch (emailErr) {
+            console.error('[WEBHOOK ERROR] Failed to send event ticket confirmation email:', emailErr);
+            emailStatus = 'failed';
+            emailError = emailErr?.message || String(emailErr);
+          }
+
+          await prisma.eventTicket.update({
+            where: { id: ticketRecord.id },
+            data: { emailStatus, emailError },
+          });
+
+          console.log(`[WEBHOOK] Ticket #${ticketRecord.ticketReference} fulfilled successfully. Email status: ${emailStatus}`);
         }
       } else {
         console.log('[WEBHOOK] Unrecognized charge metadata type. Event acknowledged.', metadata);
