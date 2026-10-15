@@ -34,24 +34,56 @@ export async function GET(req) {
       },
     });
 
-    // Unsubscribed users can see all articles, but cannot read all (only preview). Sleek Peak is fully gated.
+    // Allow non-subscribers full access to articles in category: fashion, culture, business news, sports, events
+    // Comics category is blurred like sleekpeak (gated for non-subscribers).
+    // Editorial shows preview to non-subscribers.
+    const FREE_CATEGORIES = ['fashion', 'culture', 'businessnews', 'sports', 'events', 'event'];
+
     const sanitizedArticles = articles.map((art) => {
-      const isSleekPeak = art.category?.toLowerCase().replace(/\s+/g, '') === 'sleekpeak';
+      const normCat = art.category?.toLowerCase().replace(/\s+/g, '') || '';
+      const isSleekPeak = normCat === 'sleekpeak';
+      const isComics = normCat === 'comics';
+      const isFree = FREE_CATEGORIES.includes(normCat);
+
       if (!isSubscriber) {
-        const previewContent = isSleekPeak
-          ? ''
-          : (art.content ? art.content.substring(0, Math.min(300, art.content.length)) + '...' : '');
-        return {
-          ...art,
-          content: previewContent,
-          isPaywalled: true,
-          isSleekPeak,
-        };
+        if (isFree) {
+          // Full access for non-subscribers
+          return {
+            ...art,
+            content: art.content,
+            isPaywalled: false,
+            isSleekPeak,
+            isComics,
+          };
+        } else if (isSleekPeak || isComics) {
+          // Sleekpeak and Comics are blurred and gated for non-subscribers
+          return {
+            ...art,
+            content: '',
+            isPaywalled: true,
+            isSleekPeak,
+            isComics,
+          };
+        } else {
+          // Editorial or other gated categories: preview only
+          const previewContent = art.content
+            ? art.content.substring(0, Math.min(300, art.content.length)) + '...'
+            : '';
+          return {
+            ...art,
+            content: previewContent,
+            isPaywalled: true,
+            isSleekPeak,
+            isComics,
+          };
+        }
       }
+
       return {
         ...art,
         isPaywalled: false,
         isSleekPeak,
+        isComics,
       };
     });
 

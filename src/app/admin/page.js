@@ -20,6 +20,14 @@ export default function Admin() {
   const [content, setContent] = useState('');
   const [imageUrl, setImageUrl] = useState('');
 
+  // Arrange Cards Category state
+  const [arrangeCategory, setArrangeCategory] = useState('All');
+
+  // Comic Chapter Pages states
+  const [comicPages, setComicPages] = useState([]);
+  const [newComicPageUrl, setNewComicPageUrl] = useState('');
+  const [isUploadingComicPage, setIsUploadingComicPage] = useState(false);
+
   // UI state
   const [isUploading, setIsUploading] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -577,6 +585,8 @@ export default function Admin() {
       );
       setContent('');
       setImageUrl('');
+      setComicPages([]);
+      setNewComicPageUrl('');
       return;
     }
 
@@ -588,6 +598,8 @@ export default function Admin() {
       setDate('');
       setContent('');
       setImageUrl('');
+      setComicPages([]);
+      setNewComicPageUrl('');
       return;
     }
 
@@ -598,8 +610,20 @@ export default function Admin() {
       setCategory(selected.category);
       setAuthor(selected.author);
       setDate(selected.date);
-      setContent(deformatContent(selected.content));
       setImageUrl(selected.image);
+
+      if (selected.category?.toLowerCase() === 'comics') {
+        try {
+          const parsed = JSON.parse(selected.content);
+          if (Array.isArray(parsed.pages)) {
+            setComicPages(parsed.pages);
+            setContent(parsed.synopsis || parsed.description || '');
+            return;
+          }
+        } catch {}
+      }
+      setComicPages([]);
+      setContent(deformatContent(selected.content));
     }
   };
 
@@ -832,6 +856,60 @@ export default function Admin() {
     }
   };
 
+  // Comic chapter page handlers
+  const handleUploadComicPageFile = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setIsUploadingComicPage(true);
+    setFeedback({ message: '', type: '' });
+
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+
+      const res = await fetch('/api/upload', {
+        method: 'POST',
+        body: formData,
+      });
+
+      const data = await res.json();
+      if (res.ok && data.url) {
+        setComicPages((prev) => [...prev, data.url]);
+        setFeedback({ message: 'Comic page uploaded successfully.', type: 'success' });
+      } else {
+        setFeedback({ message: data.error || 'Failed to upload comic page.', type: 'error' });
+      }
+    } catch (err) {
+      console.error('Comic page upload error:', err);
+      setFeedback({ message: 'Network error uploading comic page.', type: 'error' });
+    } finally {
+      setIsUploadingComicPage(false);
+      e.target.value = '';
+    }
+  };
+
+  const handleAddComicPageUrl = () => {
+    const trimmed = newComicPageUrl.trim();
+    if (!trimmed) return;
+    setComicPages((prev) => [...prev, trimmed]);
+    setNewComicPageUrl('');
+  };
+
+  const handleMoveComicPage = (index, direction) => {
+    const targetIndex = direction === 'up' ? index - 1 : index + 1;
+    if (targetIndex < 0 || targetIndex >= comicPages.length) return;
+    const newPages = [...comicPages];
+    const temp = newPages[index];
+    newPages[index] = newPages[targetIndex];
+    newPages[targetIndex] = temp;
+    setComicPages(newPages);
+  };
+
+  const handleRemoveComicPage = (index) => {
+    setComicPages((prev) => prev.filter((_, i) => i !== index));
+  };
+
   // Handle article submit (Publish New or Save Changes)
   const handleSubmitForm = async (e) => {
     e.preventDefault();
@@ -847,7 +925,13 @@ export default function Admin() {
     setIsSubmitting(true);
     setFeedback({ message: '', type: '' });
 
-    const formattedContent = formatContent(content);
+    const isComicsCat = category.toLowerCase() === 'comics';
+    const formattedContent = isComicsCat
+      ? JSON.stringify({
+          synopsis: content,
+          pages: comicPages,
+        })
+      : formatContent(content);
     const isEditing = selectedArticleId !== 'new';
 
     const url = '/api/articles';
@@ -894,6 +978,8 @@ export default function Admin() {
           setContent('');
           setImageUrl('');
           setSelectedArticleId('');
+          setComicPages([]);
+          setNewComicPageUrl('');
         }
 
         // Refresh articles list to update dropdown & reorder layout
@@ -937,6 +1023,8 @@ export default function Admin() {
         setContent('');
         setImageUrl('');
         setSelectedArticleId('');
+        setComicPages([]);
+        setNewComicPageUrl('');
         // Refresh dropdown & reorder list
         await fetchArticles();
       } else {
@@ -949,17 +1037,28 @@ export default function Admin() {
     }
   };
 
-  // Handle layout card reordering (Up/Down)
+  // Handle layout card reordering (Up/Down) with Category selection
   const handleMove = async (index, direction) => {
-    const newList = [...articlesList];
+    const norm = (cat) => cat?.toLowerCase().replace(/\s+/g, '') || '';
+    const displayedList = arrangeCategory === 'All'
+      ? articlesList
+      : articlesList.filter((a) => norm(a.category) === norm(arrangeCategory));
+
     const targetIndex = direction === 'up' ? index - 1 : index + 1;
+    if (targetIndex < 0 || targetIndex >= displayedList.length) return;
 
-    if (targetIndex < 0 || targetIndex >= newList.length) return;
+    const currentArt = displayedList[index];
+    const targetArt = displayedList[targetIndex];
 
-    // Swap items
-    const temp = newList[index];
-    newList[index] = newList[targetIndex];
-    newList[targetIndex] = temp;
+    const fullCurrentIdx = articlesList.findIndex((a) => a.id === currentArt.id);
+    const fullTargetIdx = articlesList.findIndex((a) => a.id === targetArt.id);
+
+    if (fullCurrentIdx === -1 || fullTargetIdx === -1) return;
+
+    const newList = [...articlesList];
+    const temp = newList[fullCurrentIdx];
+    newList[fullCurrentIdx] = newList[fullTargetIdx];
+    newList[fullTargetIdx] = temp;
 
     // Update local state instantly for fast UI feedback
     setArticlesList(newList);
@@ -982,7 +1081,6 @@ export default function Admin() {
       if (!res.ok) {
         const data = await res.json();
         setFeedback({ message: data.error || 'Failed to save layout order.', type: 'error' });
-        // Restore local state if request fails
         await fetchArticles();
       }
     } catch (err) {
@@ -1399,7 +1497,9 @@ export default function Admin() {
                 </div>
 
                 <div className="form-group">
-                  <label htmlFor="content">Content</label>
+                  <label htmlFor="content">
+                    {category.toLowerCase() === 'comics' ? 'Comic Chapter Synopsis' : 'Content'}
+                  </label>
                   <textarea
                     id="content"
                     className="form-textarea"
@@ -1408,9 +1508,177 @@ export default function Admin() {
                     onKeyDown={handleTextareaKeyDown}
                     required
                     disabled={!isFormEnabled || isSubmitting}
-                    placeholder={isFormEnabled ? 'Write your text paragraphs here...' : 'Choose an action first...'}
+                    placeholder={
+                      isFormEnabled
+                        ? category.toLowerCase() === 'comics'
+                          ? 'Write a brief summary or storyline synopsis of this comic chapter...'
+                          : 'Write your text paragraphs here...'
+                        : 'Choose an action first...'
+                    }
                   />
                 </div>
+
+                {/* Comic Chapter Pages Manager (Only when category is Comics) */}
+                {category.toLowerCase() === 'comics' && (
+                  <div style={{ marginTop: '2rem', padding: '1.5rem', border: '1px solid var(--color-bronze)', backgroundColor: 'var(--color-black-card)' }}>
+                    <h3 style={{ fontFamily: 'var(--font-serif)', fontSize: '1.2rem', color: 'var(--color-bronze)', marginBottom: '0.5rem' }}>
+                      Comic Chapter Pages (Reader Feature)
+                    </h3>
+                    <p style={{ color: 'var(--color-muted)', fontSize: '0.8rem', marginBottom: '1.5rem' }}>
+                      Upload the sequential pages of this comic chapter. Readers will swipe through these pages on /comics.
+                    </p>
+
+                    <div style={{ display: 'flex', gap: '0.75rem', marginBottom: '1.5rem', flexWrap: 'wrap' }}>
+                      <label
+                        style={{
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: '0.5rem',
+                          padding: '0.6rem 1.2rem',
+                          backgroundColor: 'transparent',
+                          border: '1px solid var(--color-bronze)',
+                          color: 'var(--color-bronze)',
+                          fontSize: '0.75rem',
+                          letterSpacing: '0.1em',
+                          cursor: isUploadingComicPage ? 'not-allowed' : 'pointer',
+                          textTransform: 'uppercase',
+                          fontWeight: 600,
+                        }}
+                      >
+                        <input
+                          type="file"
+                          accept="image/*"
+                          style={{ display: 'none' }}
+                          disabled={!isFormEnabled || isUploadingComicPage || isSubmitting}
+                          onChange={handleUploadComicPageFile}
+                        />
+                        {isUploadingComicPage ? 'Uploading Page...' : '+ Upload Comic Page'}
+                      </label>
+
+                      <div style={{ display: 'flex', gap: '0.5rem', flex: 1, minWidth: '240px' }}>
+                        <input
+                          type="text"
+                          placeholder="Or paste page image URL..."
+                          className="form-input"
+                          value={newComicPageUrl}
+                          onChange={(e) => setNewComicPageUrl(e.target.value)}
+                          disabled={!isFormEnabled || isSubmitting}
+                          style={{ fontSize: '0.8rem', padding: '0.5rem 0.75rem' }}
+                        />
+                        <button
+                          type="button"
+                          onClick={handleAddComicPageUrl}
+                          disabled={!isFormEnabled || !newComicPageUrl.trim() || isSubmitting}
+                          style={{
+                            backgroundColor: 'transparent',
+                            border: '1px solid var(--color-border)',
+                            color: 'var(--color-white)',
+                            padding: '0 1rem',
+                            fontSize: '0.75rem',
+                            cursor: 'pointer',
+                            textTransform: 'uppercase',
+                          }}
+                        >
+                          Add
+                        </button>
+                      </div>
+                    </div>
+
+                    {comicPages.length === 0 ? (
+                      <p style={{ color: 'var(--color-muted)', fontSize: '0.8rem', fontStyle: 'italic' }}>
+                        No separate chapter pages added yet. The cover photo above will be displayed as Page 1.
+                      </p>
+                    ) : (
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+                        {comicPages.map((pageUrl, pIdx) => (
+                          <div
+                            key={pIdx}
+                            style={{
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'space-between',
+                              padding: '0.6rem 1rem',
+                              backgroundColor: 'rgba(255, 255, 255, 0.03)',
+                              border: '1px solid var(--color-border)',
+                            }}
+                          >
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', overflow: 'hidden' }}>
+                              <span style={{ color: 'var(--color-bronze)', fontSize: '0.8rem', fontWeight: 600, width: '60px' }}>
+                                Page {pIdx + 1}
+                              </span>
+                              <img
+                                src={pageUrl}
+                                alt={`Page ${pIdx + 1}`}
+                                style={{ width: '36px', height: '48px', objectFit: 'cover', border: '1px solid var(--color-border)' }}
+                              />
+                              <span
+                                style={{
+                                  fontSize: '0.75rem',
+                                  color: 'var(--color-muted)',
+                                  whiteSpace: 'nowrap',
+                                  overflow: 'hidden',
+                                  textOverflow: 'ellipsis',
+                                  maxWidth: '280px',
+                                }}
+                              >
+                                {pageUrl}
+                              </span>
+                            </div>
+
+                            <div style={{ display: 'flex', gap: '0.35rem' }}>
+                              <button
+                                type="button"
+                                onClick={() => handleMoveComicPage(pIdx, 'up')}
+                                disabled={pIdx === 0}
+                                style={{
+                                  background: 'none',
+                                  border: '1px solid var(--color-border)',
+                                  color: 'var(--color-white)',
+                                  padding: '0.2rem 0.5rem',
+                                  cursor: pIdx === 0 ? 'not-allowed' : 'pointer',
+                                  opacity: pIdx === 0 ? 0.3 : 1,
+                                  fontSize: '0.7rem',
+                                }}
+                              >
+                                ▲
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => handleMoveComicPage(pIdx, 'down')}
+                                disabled={pIdx === comicPages.length - 1}
+                                style={{
+                                  background: 'none',
+                                  border: '1px solid var(--color-border)',
+                                  color: 'var(--color-white)',
+                                  padding: '0.2rem 0.5rem',
+                                  cursor: pIdx === comicPages.length - 1 ? 'not-allowed' : 'pointer',
+                                  opacity: pIdx === comicPages.length - 1 ? 0.3 : 1,
+                                  fontSize: '0.7rem',
+                                }}
+                              >
+                                ▼
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => handleRemoveComicPage(pIdx)}
+                                style={{
+                                  background: 'none',
+                                  border: '1px solid rgba(220, 50, 50, 0.4)',
+                                  color: '#ff6b6b',
+                                  padding: '0.2rem 0.5rem',
+                                  cursor: 'pointer',
+                                  fontSize: '0.7rem',
+                                }}
+                              >
+                                ✕
+                              </button>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )}
 
                 {feedback.message && (
                   <div className={`admin-feedback ${feedback.type}`}>{feedback.message}</div>
@@ -1527,90 +1795,130 @@ export default function Admin() {
               <h2 className="subtitle-tag" style={{ marginBottom: '1.5rem' }}>
                 Arrange Cards Layout
               </h2>
-              <p style={{ color: 'var(--color-muted)', fontSize: '0.85rem', marginBottom: '2.5rem' }}>
-                Use the up (▲) and down (▼) buttons to reorder how the article cards are displayed on the main feed.
+              <p style={{ color: 'var(--color-muted)', fontSize: '0.85rem', marginBottom: '2rem' }}>
+                Select a category to view and arrange its articles, or choose "All Categories". Use the up (▲) and down (▼) buttons to reorder how the article cards are displayed on the main feed.
               </p>
 
-              <div
-                className="reorder-list"
-                style={{
-                  display: 'flex',
-                  flexDirection: 'column',
-                  gap: '1rem',
-                  maxWidth: '650px',
-                }}
-              >
-                {articlesList.map((art, idx) => (
+              {/* Category Selector for Arrangement (retaining the exact same design) */}
+              <div className="form-group" style={{ marginBottom: '2rem', maxWidth: '350px' }}>
+                <label htmlFor="arrange-category" style={{ fontSize: '0.8rem', color: 'var(--color-bronze)' }}>
+                  Category
+                </label>
+                <select
+                  id="arrange-category"
+                  className="form-select"
+                  value={arrangeCategory}
+                  onChange={(e) => setArrangeCategory(e.target.value)}
+                  style={{ marginTop: '0.5rem', border: '1px solid var(--color-border)' }}
+                >
+                  <option value="All">All Categories</option>
+                  <option value="Fashion">Fashion</option>
+                  <option value="Sports">Sports</option>
+                  <option value="Sleek Peak">Sleek Peak</option>
+                  <option value="Culture">Culture</option>
+                  <option value="Editorial">Editorial</option>
+                  <option value="Business News">Business News</option>
+                  <option value="Comics">Comics</option>
+                </select>
+              </div>
+
+              {(() => {
+                const norm = (cat) => cat?.toLowerCase().replace(/\s+/g, '') || '';
+                const displayedList = arrangeCategory === 'All'
+                  ? articlesList
+                  : articlesList.filter((a) => norm(a.category) === norm(arrangeCategory));
+
+                if (displayedList.length === 0) {
+                  return (
+                    <p style={{ color: 'var(--color-muted)', fontSize: '0.85rem', fontStyle: 'italic', padding: '1rem 0' }}>
+                      No articles published in {arrangeCategory} category yet.
+                    </p>
+                  );
+                }
+
+                return (
                   <div
-                    key={art.id}
+                    className="reorder-list"
                     style={{
                       display: 'flex',
-                      justifyContent: 'space-between',
-                      alignItems: 'center',
-                      padding: '1.2rem 1.5rem',
-                      backgroundColor: 'var(--color-black-card)',
-                      border: '1px solid var(--color-border)',
+                      flexDirection: 'column',
+                      gap: '1rem',
+                      maxWidth: '650px',
                     }}
                   >
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '1.5rem' }}>
-                      <span
+                    {displayedList.map((art, idx) => (
+                      <div
+                        key={art.id}
                         style={{
-                          color: 'var(--color-bronze)',
-                          fontSize: '0.85rem',
-                          fontFamily: 'var(--font-serif)',
-                          width: '25px',
+                          display: 'flex',
+                          justifyContent: 'space-between',
+                          alignItems: 'center',
+                          padding: '1.2rem 1.5rem',
+                          backgroundColor: 'var(--color-black-card)',
+                          border: '1px solid var(--color-border)',
                         }}
                       >
-                        #{idx + 1}
-                      </span>
-                      <span style={{ fontSize: '0.95rem', fontWeight: 500 }}>{art.title}</span>
-                      <span
-                        style={{
-                          fontSize: '0.7rem',
-                          color: 'var(--color-muted)',
-                          textTransform: 'uppercase',
-                          letterSpacing: '0.05em',
-                        }}
-                      >
-                        ({art.category})
-                      </span>
-                    </div>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '1.5rem' }}>
+                          <span
+                            style={{
+                              color: 'var(--color-bronze)',
+                              fontSize: '0.85rem',
+                              fontFamily: 'var(--font-serif)',
+                              width: '25px',
+                            }}
+                          >
+                            #{idx + 1}
+                          </span>
+                          <span style={{ fontSize: '0.95rem', fontWeight: 500 }}>{art.title}</span>
+                          <span
+                            style={{
+                              fontSize: '0.7rem',
+                              color: 'var(--color-muted)',
+                              textTransform: 'uppercase',
+                              letterSpacing: '0.05em',
+                            }}
+                          >
+                            ({art.category})
+                          </span>
+                        </div>
 
-                    <div style={{ display: 'flex', gap: '0.5rem' }}>
-                      <button
-                        type="button"
-                        onClick={() => handleMove(idx, 'up')}
-                        disabled={idx === 0 || isSubmitting}
-                        style={{
-                          background: 'transparent',
-                          border: '1px solid var(--color-border)',
-                          color: 'var(--color-white)',
-                          padding: '0.4rem 0.8rem',
-                          cursor: idx === 0 ? 'not-allowed' : 'pointer',
-                          opacity: idx === 0 ? 0.3 : 1,
-                        }}
-                      >
-                        ▲
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => handleMove(idx, 'down')}
-                        disabled={idx === articlesList.length - 1 || isSubmitting}
-                        style={{
-                          background: 'transparent',
-                          border: '1px solid var(--color-border)',
-                          color: 'var(--color-white)',
-                          padding: '0.4rem 0.8rem',
-                          cursor: idx === articlesList.length - 1 ? 'not-allowed' : 'pointer',
-                          opacity: idx === articlesList.length - 1 ? 0.3 : 1,
-                        }}
-                      >
-                        ▼
-                      </button>
-                    </div>
+                        <div style={{ display: 'flex', gap: '0.5rem' }}>
+                          <button
+                            type="button"
+                            onClick={() => handleMove(idx, 'up')}
+                            disabled={idx === 0 || isSubmitting}
+                            style={{
+                              background: 'transparent',
+                              border: '1px solid var(--color-border)',
+                              color: 'var(--color-white)',
+                              padding: '0.4rem 0.8rem',
+                              cursor: idx === 0 ? 'not-allowed' : 'pointer',
+                              opacity: idx === 0 ? 0.3 : 1,
+                            }}
+                          >
+                            ▲
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleMove(idx, 'down')}
+                            disabled={idx === displayedList.length - 1 || isSubmitting}
+                            style={{
+                              background: 'transparent',
+                              border: '1px solid var(--color-border)',
+                              color: 'var(--color-white)',
+                              padding: '0.4rem 0.8rem',
+                              cursor: idx === displayedList.length - 1 ? 'not-allowed' : 'pointer',
+                              opacity: idx === displayedList.length - 1 ? 0.3 : 1,
+                            }}
+                          >
+                            ▼
+                          </button>
+                        </div>
+                      </div>
+                    ))}
                   </div>
-                ))}
-              </div>
+                );
+              })()}
             </div>
           )}
         </>

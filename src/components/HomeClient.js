@@ -2,12 +2,16 @@
 
 import { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import Comments from './Comments';
 
 export default function HomeClient({ initialCover, initialIsSubscriber }) {
+  const router = useRouter();
   const [articles, setArticles] = useState([]);
   const [filteredArticles, setFilteredArticles] = useState([]);
-  const [activeCategory, setActiveCategory] = useState('editorial');
+  const [events, setEvents] = useState([]);
+  const [isLoadingEvents, setIsLoadingEvents] = useState(false);
+  const [activeCategory, setActiveCategory] = useState('fashion');
   const [isHeroLoaded, setIsHeroLoaded] = useState(false);
 
   // Initialise from server-rendered props — no flash on first paint
@@ -96,6 +100,24 @@ export default function HomeClient({ initialCover, initialIsSubscriber }) {
     }
   }, []);
 
+  const normalizeCategory = (cat) => cat?.toLowerCase().replace(/\s+/g, '') || '';
+
+  // Fetch events from Event API
+  const fetchEvents = async () => {
+    setIsLoadingEvents(true);
+    try {
+      const res = await fetch('/api/events');
+      if (res.ok) {
+        const data = await res.json();
+        setEvents(data);
+      }
+    } catch (err) {
+      console.error('Failed to load events:', err);
+    } finally {
+      setIsLoadingEvents(false);
+    }
+  };
+
   // Fetch articles from Database API
   useEffect(() => {
     async function fetchArticles() {
@@ -104,15 +126,16 @@ export default function HomeClient({ initialCover, initialIsSubscriber }) {
         if (res.ok) {
           const data = await res.json();
           setArticles(data);
-          // Default to editorial category
-          const editorialArticles = data.filter(a => a.category?.toLowerCase() === 'editorial');
-          setFilteredArticles(editorialArticles.length > 0 ? editorialArticles : data);
+          // Default to fashion category (first in arrangement)
+          const fashionArticles = data.filter(a => normalizeCategory(a.category) === 'fashion');
+          setFilteredArticles(fashionArticles.length > 0 ? fashionArticles : data);
         }
       } catch (err) {
         console.error('Failed to load articles:', err);
       }
     }
     fetchArticles();
+    fetchEvents();
   }, []);
 
   // Trigger hero animation entry
@@ -122,9 +145,16 @@ export default function HomeClient({ initialCover, initialIsSubscriber }) {
   }, []);
 
   // Filter articles based on Category
-  const handleCategoryFilter = (category) => {
-    setActiveCategory(category);
-    setFilteredArticles(articles.filter(a => a.category?.toLowerCase() === category.toLowerCase()));
+  const handleCategoryFilter = (catId) => {
+    setActiveCategory(catId);
+    const norm = normalizeCategory(catId);
+    if (norm === 'event' || norm === 'events') {
+      if (events.length === 0) {
+        fetchEvents();
+      }
+    } else {
+      setFilteredArticles(articles.filter(a => normalizeCategory(a.category) === norm));
+    }
   };
 
   // Excerpt generation helper (strips HTML and truncates)
@@ -325,81 +355,170 @@ export default function HomeClient({ initialCover, initialIsSubscriber }) {
             </p>
           </header>
 
-          {/* Categories Filter - Editorial default, no All Stories */}
+          {/* Categories Filter - Arrangement: fashion (first), sports, sleekpeak, culture, editorial, business news, comics, event */}
           <div className="filter-container">
-            {['editorial', 'fashion', 'culture', 'sleek peak', 'sports', 'business news', 'comics'].map((cat) => (
+            {[
+              { id: 'fashion', label: 'fashion' },
+              { id: 'sports', label: 'sports' },
+              { id: 'sleekpeak', label: 'sleekpeak' },
+              { id: 'culture', label: 'culture' },
+              { id: 'editorial', label: 'editorial' },
+              { id: 'business news', label: 'business news' },
+              { id: 'comics', label: 'comics' },
+              { id: 'event', label: 'event' },
+            ].map((cat) => (
               <button
-                key={cat}
-                className={`filter-btn ${activeCategory === cat ? 'active' : ''}`}
-                onClick={() => handleCategoryFilter(cat)}
+                key={cat.id}
+                className={`filter-btn ${normalizeCategory(activeCategory) === normalizeCategory(cat.id) ? 'active' : ''}`}
+                onClick={() => handleCategoryFilter(cat.id)}
               >
-                {cat}
+                {cat.label}
               </button>
             ))}
           </div>
 
-          {/* Articles Grid */}
-          <div className="articles-grid">
-            {filteredArticles.map((article) => {
-              const isFeatured = false;
-              const isSleekPeak = article.category?.toLowerCase().replace(/\s+/g, '') === 'sleekpeak';
-              // Sleekpeak stays blurred for non-subscribers; regular articles are clear and viewable
-              const isCardBlurred = !isSubscriber && isSleekPeak;
+          {/* Grid: Events Grid or Articles Grid */}
+          {normalizeCategory(activeCategory) === 'event' || normalizeCategory(activeCategory) === 'events' ? (
+            <div className="articles-grid">
+              {events.map((event) => {
+                const eventFormattedDate = new Date(event.date).toLocaleDateString('en-US', {
+                  weekday: 'short',
+                  month: 'short',
+                  day: 'numeric',
+                  year: 'numeric',
+                });
 
-              return (
-                <article
-                  key={article.id}
-                  className={`article-card ${isFeatured ? 'featured' : ''} ${isCardBlurred ? 'sleekpeak-locked' : ''} ${!isSubscriber ? 'paywalled' : ''}`}
-                  onClick={() => {
-                    if (isCardBlurred) {
-                      const subSection = document.getElementById('subscribe');
-                      if (subSection) {
-                        subSection.scrollIntoView({ behavior: 'smooth' });
-                      }
-                      showToast('Sleek Peak stories are exclusive to subscribers. Subscribe to unlock.', 'info');
-                    } else {
-                      openReader(article);
-                    }
-                  }}
-                  style={{ cursor: 'pointer' }}
-                >
-                  <div className="card-img-wrapper">
-                    <div
-                      className="card-img"
-                      style={{ backgroundImage: `url('${article.image}')` }}
-                    ></div>
-                    <span className="card-category">{article.category}</span>
-
-                    {/* Lock overlay ONLY for Sleek Peak */}
-                    {isCardBlurred && (
-                      <div className="paywall-overlay" style={{ backdropFilter: 'blur(8px)', backgroundColor: 'rgba(12, 12, 12, 0.85)' }}>
-                        <svg className="paywall-lock-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
-                          <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
-                          <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
-                        </svg>
-                        <h4 className="paywall-title">Sleek Peak Exclusive</h4>
-                        <p className="paywall-desc">Subscribe to unlock access to Sleek Peak and all premium issues.</p>
-                        <button className="paywall-btn">Subscribe</button>
+                return (
+                  <article
+                    key={event.id}
+                    className="article-card"
+                    onClick={() => router.push('/events')}
+                    style={{ cursor: 'pointer' }}
+                  >
+                    <div className="card-img-wrapper">
+                      <div
+                        className="card-img"
+                        style={{ backgroundImage: `url('${event.image}')` }}
+                      ></div>
+                      <span className="card-category">EVENT</span>
+                    </div>
+                    <div className="card-info">
+                      <span className="card-date">
+                        {eventFormattedDate} &bull; {event.location}
+                      </span>
+                      <h3 className="card-title">{event.title}</h3>
+                      <p className="card-excerpt">{getExcerpt(event.description)}</p>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 'auto', paddingTop: '0.75rem' }}>
+                        <Link
+                          href="/events"
+                          className="card-read-more"
+                          onClick={(e) => e.stopPropagation()}
+                          style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem' }}
+                        >
+                          More Info &rarr;
+                        </Link>
+                        {event.averageRating && (
+                          <span style={{ fontSize: '0.75rem', color: 'var(--color-bronze)' }}>
+                            ★ {event.averageRating} ({event.ratingsCount})
+                          </span>
+                        )}
                       </div>
-                    )}
-                  </div>
-                  <div className="card-info">
-                    <span className="card-date">{article.date}</span>
-                    <h3 className="card-title">{article.title}</h3>
-                    <p className="card-excerpt">{getExcerpt(article.content)}</p>
-                    <span className="card-read-more">
-                      {isCardBlurred ? '🔒 Subscribe to Unlock' : (!isSubscriber ? 'Read Story (Preview)' : 'Read Story')}
-                    </span>
-                  </div>
-                </article>
-              );
-            })}
-          </div>
+                    </div>
+                  </article>
+                );
+              })}
+              {events.length === 0 && (
+                <p style={{ textAlign: 'center', color: 'var(--color-muted)', padding: '3rem 0', gridColumn: '1 / -1' }}>
+                  {isLoadingEvents ? 'Loading events...' : 'No upcoming events published yet.'}
+                </p>
+              )}
+            </div>
+          ) : (
+            <div className="articles-grid">
+              {filteredArticles.map((article) => {
+                const isFeatured = false;
+                const catNorm = normalizeCategory(article.category);
+                const isSleekPeak = catNorm === 'sleekpeak';
+                const isComics = catNorm === 'comics';
+                // Sleekpeak and comics are blurred for non-subscribers
+                const isCardBlurred = !isSubscriber && (isSleekPeak || isComics);
 
-          {filteredArticles.length === 0 && (
-            <p style={{ textAlign: 'center', color: 'var(--color-muted)', padding: '3rem 0' }}>
-              No stories published in this category yet.
-            </p>
+                return (
+                  <article
+                    key={article.id}
+                    className={`article-card ${isFeatured ? 'featured' : ''} ${isCardBlurred ? 'sleekpeak-locked' : ''} ${!isSubscriber ? 'paywalled' : ''}`}
+                    onClick={() => {
+                      if (isCardBlurred) {
+                        const subSection = document.getElementById('subscribe');
+                        if (subSection) {
+                          subSection.scrollIntoView({ behavior: 'smooth' });
+                        }
+                        showToast(
+                          `${isComics ? 'Sleek Comics' : 'Sleek Peak stories'} are exclusive to subscribers. Subscribe to unlock.`,
+                          'info'
+                        );
+                      } else if (isComics) {
+                        router.push(`/comics?id=${article.id}`);
+                      } else {
+                        openReader(article);
+                      }
+                    }}
+                    style={{ cursor: 'pointer' }}
+                  >
+                    <div className="card-img-wrapper">
+                      <div
+                        className="card-img"
+                        style={{ backgroundImage: `url('${article.image}')` }}
+                      ></div>
+                      <span className="card-category">{article.category}</span>
+
+                      {/* Lock overlay for Sleek Peak and Comics */}
+                      {isCardBlurred && (
+                        <div className="paywall-overlay" style={{ backdropFilter: 'blur(8px)', backgroundColor: 'rgba(12, 12, 12, 0.85)' }}>
+                          <svg className="paywall-lock-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
+                            <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
+                            <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
+                          </svg>
+                          <h4 className="paywall-title">{isComics ? 'Comics Exclusive' : 'Sleek Peak Exclusive'}</h4>
+                          <p className="paywall-desc">
+                            {isComics
+                              ? 'Subscribe to unlock access to Sleek Comics and full graphic chapters.'
+                              : 'Subscribe to unlock access to Sleek Peak and all premium issues.'}
+                          </p>
+                          <button
+                            className="paywall-btn"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              const subSection = document.getElementById('subscribe');
+                              if (subSection) subSection.scrollIntoView({ behavior: 'smooth' });
+                            }}
+                          >
+                            Subscribe
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                    <div className="card-info">
+                      <span className="card-date">{article.date}</span>
+                      <h3 className="card-title">{article.title}</h3>
+                      <p className="card-excerpt">{getExcerpt(article.content)}</p>
+                      <span className="card-read-more">
+                        {isCardBlurred
+                          ? '🔒 Subscribe to Unlock'
+                          : isComics
+                          ? 'Read Comic Chapter →'
+                          : 'Read Story'}
+                      </span>
+                    </div>
+                  </article>
+                );
+              })}
+              {filteredArticles.length === 0 && (
+                <p style={{ textAlign: 'center', color: 'var(--color-muted)', padding: '3rem 0', gridColumn: '1 / -1' }}>
+                  No stories published in this category yet.
+                </p>
+              )}
+            </div>
           )}
         </div>
       </main>
@@ -576,7 +695,9 @@ export default function HomeClient({ initialCover, initialIsSubscriber }) {
         </button>
         <div className="reader-content-wrapper">
           {selectedArticle && (() => {
-            const isReaderPaywalled = !isSubscriber;
+            const normCat = normalizeCategory(selectedArticle.category);
+            const isFreeCategory = ['fashion', 'culture', 'businessnews', 'sports', 'events', 'event'].includes(normCat);
+            const isReaderPaywalled = !isSubscriber && !isFreeCategory;
 
             return (
               <article className="reader-article">

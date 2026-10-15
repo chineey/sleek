@@ -19,7 +19,8 @@ export default function Navbar() {
 
   const isShopActive = pathname === '/shop';
   const isEventsActive = pathname === '/events' || pathname.startsWith('/events');
-  const isSubPage = isShopActive || isEventsActive;
+  const isComicsActive = pathname === '/comics' || pathname.startsWith('/comics');
+  const isSubPage = isShopActive || isEventsActive || isComicsActive;
 
   const checkSubscriberStatus = async () => {
     try {
@@ -141,6 +142,15 @@ export default function Navbar() {
               onClick={() => setIsMenuOpen(false)}
             >
               Events
+            </Link>
+          </li>
+          <li>
+            <Link 
+              href="/comics" 
+              className={`nav-link-item ${isComicsActive ? 'active' : ''}`}
+              onClick={() => setIsMenuOpen(false)}
+            >
+              Comics
             </Link>
           </li>
           <li>
