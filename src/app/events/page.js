@@ -726,11 +726,6 @@ export default function EventsPage() {
               <span style={{ color: 'var(--color-muted)' }}>
                 {selectedEvent.address}
               </span>
-              {selectedEvent.latitude != null && selectedEvent.longitude != null && (
-                <span style={{ color: 'var(--color-bronze)', fontSize: '0.8rem', opacity: 0.85 }}>
-                  📍 Exact GPS: {selectedEvent.latitude.toFixed(5)}, {selectedEvent.longitude.toFixed(5)}
-                </span>
-              )}
             </div>
 
             {/* Directions & Ticket Action */}
