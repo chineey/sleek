@@ -440,8 +440,8 @@ export default function HomeClient({ initialCover, initialIsSubscriber }) {
                 const catNorm = normalizeCategory(article.category);
                 const isSleekPeak = catNorm === 'sleekpeak';
                 const isComics = catNorm === 'comics';
-                // Sleekpeak and comics are blurred for non-subscribers
-                const isCardBlurred = !isSubscriber && (isSleekPeak || isComics);
+                // Only comics are blurred for non-subscribers (sleekpeak is full access)
+                const isCardBlurred = !isSubscriber && isComics;
 
                 return (
                   <article
@@ -454,7 +454,7 @@ export default function HomeClient({ initialCover, initialIsSubscriber }) {
                           subSection.scrollIntoView({ behavior: 'smooth' });
                         }
                         showToast(
-                          `${isComics ? 'Sleek Comics' : 'Sleek Peak stories'} are exclusive to subscribers. Subscribe to unlock.`,
+                          'Sleek Comics are exclusive to subscribers. Subscribe to unlock.',
                           'info'
                         );
                       } else if (isComics) {
@@ -472,18 +472,16 @@ export default function HomeClient({ initialCover, initialIsSubscriber }) {
                       ></div>
                       <span className="card-category">{article.category}</span>
 
-                      {/* Lock overlay for Sleek Peak and Comics */}
+                      {/* Lock overlay for Comics */}
                       {isCardBlurred && (
                         <div className="paywall-overlay" style={{ backdropFilter: 'blur(8px)', backgroundColor: 'rgba(12, 12, 12, 0.85)' }}>
                           <svg className="paywall-lock-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
                             <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
                             <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
                           </svg>
-                          <h4 className="paywall-title">{isComics ? 'Comics Exclusive' : 'Sleek Peak Exclusive'}</h4>
+                          <h4 className="paywall-title">Comics Exclusive</h4>
                           <p className="paywall-desc">
-                            {isComics
-                              ? 'Subscribe to unlock access to Sleek Comics and full graphic chapters.'
-                              : 'Subscribe to unlock access to Sleek Peak and all premium issues.'}
+                            Subscribe to unlock access to Sleek Comics and full graphic chapters.
                           </p>
                           <button
                             className="paywall-btn"
@@ -696,7 +694,7 @@ export default function HomeClient({ initialCover, initialIsSubscriber }) {
         <div className="reader-content-wrapper">
           {selectedArticle && (() => {
             const normCat = normalizeCategory(selectedArticle.category);
-            const isFreeCategory = ['fashion', 'culture', 'businessnews', 'sports', 'events', 'event'].includes(normCat);
+            const isFreeCategory = ['fashion', 'culture', 'businessnews', 'sports', 'events', 'event', 'sleekpeak'].includes(normCat);
             const isReaderPaywalled = !isSubscriber && !isFreeCategory;
 
             return (
