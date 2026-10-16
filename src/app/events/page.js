@@ -524,18 +524,11 @@ export default function EventsPage() {
                       <span style={{ fontSize: '0.75rem', color: 'var(--color-muted)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
                         Admission
                       </span>
-                      <div style={{ textAlign: 'right' }}>
-                        <span style={{ fontSize: '0.9rem', fontWeight: 700, color: 'var(--color-bronze)' }}>
-                          {event.ticketPrice && event.ticketPrice > 0
-                            ? `₦${Number(event.ticketPrice).toLocaleString()}`
-                            : 'Free Entry'}
-                        </span>
-                        {!event.hasTickets && (
-                          <span style={{ display: 'block', fontSize: '0.68rem', color: 'var(--color-muted)' }}>
-                            {event.ticketPrice && event.ticketPrice > 0 ? 'Pay at door / RSVP' : 'No ticket needed'}
-                          </span>
-                        )}
-                      </div>
+                      <span style={{ fontSize: '0.9rem', fontWeight: 700, color: 'var(--color-bronze)' }}>
+                        {event.ticketPrice && event.ticketPrice > 0
+                          ? `₦${Number(event.ticketPrice).toLocaleString()}`
+                          : 'Free Entry'}
+                      </span>
                     </div>
 
                     {/* 1-5 Star Rating Section (Active after party date, for all users) */}
@@ -781,22 +774,20 @@ export default function EventsPage() {
                     : 'Free Entry'}
                 </span>
               </div>
-              <span style={{
-                fontSize: '0.75rem',
-                color: selectedEvent.hasTickets ? 'var(--color-bronze)' : 'var(--color-muted)',
-                fontWeight: 600,
-                letterSpacing: '0.04em',
-                padding: '0.35rem 0.75rem',
-                backgroundColor: 'rgba(255, 255, 255, 0.04)',
-                borderRadius: '4px',
-                border: '1px solid rgba(255, 255, 255, 0.08)',
-              }}>
-                {selectedEvent.hasTickets
-                  ? '🎟 Tickets Sold Online'
-                  : selectedEvent.ticketPrice && selectedEvent.ticketPrice > 0
-                  ? '🚪 Pay at door / RSVP'
-                  : '✨ Free Admission'}
-              </span>
+              {selectedEvent.hasTickets && (
+                <span style={{
+                  fontSize: '0.75rem',
+                  color: 'var(--color-bronze)',
+                  fontWeight: 600,
+                  letterSpacing: '0.04em',
+                  padding: '0.35rem 0.75rem',
+                  backgroundColor: 'rgba(255, 255, 255, 0.04)',
+                  borderRadius: '4px',
+                  border: '1px solid rgba(255, 255, 255, 0.08)',
+                }}>
+                  🎟 Tickets Sold Online
+                </span>
+              )}
             </div>
 
             {/* Directions & Ticket Action */}
