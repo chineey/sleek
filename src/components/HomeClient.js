@@ -720,8 +720,9 @@ export default function HomeClient({ initialCover, initialIsSubscriber, initialA
           <div className="footer-links-grid">
             <div className="footer-col">
               <h4>Connect</h4>
-              <ul>
+              <ul className="footer-connect-list">
                 <li><a href="https://www.instagram.com/_sleekpeak/" target="_blank" rel="noreferrer">Instagram</a></li>
+                <li><a href="https://pin.it/SGCcxGASs" target="_blank" rel="noreferrer">Pinterest</a></li>
               </ul>
             </div>
           </div>

@@ -1474,6 +1474,12 @@ img {
     gap: 0.75rem;
 }
 
+.footer-col ul.footer-connect-list {
+    flex-direction: row;
+    gap: 1.5rem;
+    align-items: center;
+}
+
 .footer-col ul a {
     font-size: 0.85rem;
     color: var(--color-muted);
