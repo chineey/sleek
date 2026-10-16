@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { usePathname } from 'next/navigation';
 import Link from 'next/link';
 
@@ -11,6 +11,9 @@ export default function Navbar() {
   const [activeSection, setActiveSection] = useState('editorial');
   const [isSubscriber, setIsSubscriber] = useState(false);
   const [isSubscriberChecked, setIsSubscriberChecked] = useState(false);
+
+  const isVisibleRef = useRef(false);
+  const activeSectionRef = useRef('editorial');
 
   // Hide the global navigation bar on admin or login routes
   if (pathname.startsWith('/admin') || pathname.startsWith('/login')) {
@@ -39,60 +42,86 @@ export default function Navbar() {
   useEffect(() => {
     checkSubscriberStatus();
 
-    // Listen to changes in subscriber status
     const handleSubscriberChange = () => {
       checkSubscriberStatus();
     };
 
     window.addEventListener('subscriber-change', handleSubscriberChange);
-    
-    const handleScroll = () => {
-      const scrollPos = window.scrollY;
-      const viewportHeight = window.innerHeight;
 
-      // Show/hide sticky navbar depending on scroll offset or if on a sub-page
-      if (isSubPage || scrollPos > viewportHeight - 100) {
+    // If on sub-page, navbar is always visible
+    if (isSubPage) {
+      if (!isVisibleRef.current) {
+        isVisibleRef.current = true;
         setIsVisible(true);
-      } else {
-        setIsVisible(false);
-        setIsMenuOpen(false);
       }
+      return () => {
+        window.removeEventListener('subscriber-change', handleSubscriberChange);
+      };
+    }
 
-     
-      const sections = ['editorial', 'about', 'subscribe'];
-      let currentSection = '';
-      for (const sectionId of sections) {
-        const section = document.getElementById(sectionId);
-        if (section) {
-          const sectionTop = section.offsetTop - 120;
-          const sectionHeight = section.offsetHeight;
-          if (scrollPos >= sectionTop && scrollPos < sectionTop + sectionHeight) {
-            currentSection = sectionId;
-            break;
+    // High performance IntersectionObserver for section tracking (ZERO layout thrashing)
+    const observerCallback = (entries) => {
+      entries.forEach((entry) => {
+        if (entry.isIntersecting && entry.target.id) {
+          if (activeSectionRef.current !== entry.target.id) {
+            activeSectionRef.current = entry.target.id;
+            setActiveSection(entry.target.id);
           }
         }
-      }
+      });
+    };
 
-      if (currentSection) {
-        setActiveSection(currentSection);
+    const sectionObserver = new IntersectionObserver(observerCallback, {
+      rootMargin: '-30% 0px -50% 0px',
+      threshold: 0,
+    });
+
+    const sections = ['editorial', 'about', 'subscribe'];
+    sections.forEach((id) => {
+      const el = document.getElementById(id);
+      if (el) sectionObserver.observe(el);
+    });
+
+    // Throttled, passive scroll listener for navbar appearance
+    let ticking = false;
+    const handleScroll = () => {
+      if (!ticking) {
+        window.requestAnimationFrame(() => {
+          const scrollPos = window.scrollY;
+          const viewportHeight = window.innerHeight;
+          const shouldBeVisible = scrollPos > viewportHeight - 100;
+
+          if (shouldBeVisible !== isVisibleRef.current) {
+            isVisibleRef.current = shouldBeVisible;
+            setIsVisible(shouldBeVisible);
+            if (!shouldBeVisible) {
+              setIsMenuOpen(false);
+            }
+          }
+          ticking = false;
+        });
+        ticking = true;
       }
     };
 
-    window.addEventListener('scroll', handleScroll);
+    // Run once initially
+    handleScroll();
+
+    window.addEventListener('scroll', handleScroll, { passive: true });
+
     return () => {
       window.removeEventListener('scroll', handleScroll);
       window.removeEventListener('subscriber-change', handleSubscriberChange);
+      sectionObserver.disconnect();
     };
-  }, []);
+  }, [isSubPage]);
 
   const handleLogout = async () => {
     try {
       const res = await fetch('/api/subscriber/logout', { method: 'POST' });
       if (res.ok) {
         setIsSubscriber(false);
-        // Dispatch event to sync other components
         window.dispatchEvent(new Event('subscriber-change'));
-        // Refresh page to trigger paywalls immediately
         window.location.reload();
       }
     } catch (err) {
@@ -119,20 +148,11 @@ export default function Navbar() {
           </li>
           <li>
             <Link 
-              href="/#about" 
-              className={`nav-link-item ${activeSection === 'about' ? 'active' : ''}`}
+              href="/comics" 
+              className={`nav-link-item ${isComicsActive ? 'active' : ''}`}
               onClick={() => setIsMenuOpen(false)}
             >
-              Features
-            </Link>
-          </li>
-          <li>
-            <Link 
-              href="/#subscribe" 
-              className={`nav-link-item ${activeSection === 'subscribe' ? 'active' : ''}`}
-              onClick={() => setIsMenuOpen(false)}
-            >
-              Subscribe
+              Comics
             </Link>
           </li>
           <li>
@@ -146,30 +166,44 @@ export default function Navbar() {
           </li>
           <li>
             <Link 
-              href="/comics" 
-              className={`nav-link-item ${isComicsActive ? 'active' : ''}`}
-              onClick={() => setIsMenuOpen(false)}
-            >
-              Comics
-            </Link>
-          </li>
-          <li>
-            <Link 
               href="/shop" 
               className={`nav-link-item ${isShopActive ? 'active' : ''}`}
               onClick={() => setIsMenuOpen(false)}
             >
-              Shop Sleek
+              Shop
+            </Link>
+          </li>
+          <li>
+            <Link 
+              href="/#about" 
+              className={`nav-link-item ${activeSection === 'about' ? 'active' : ''}`}
+              onClick={() => setIsMenuOpen(false)}
+            >
+              About
+            </Link>
+          </li>
+          <li>
+            <Link 
+              href="/#subscribe" 
+              className={`nav-link-item ${activeSection === 'subscribe' ? 'active' : ''}`}
+              onClick={() => setIsMenuOpen(false)}
+            >
+              Subscribe
             </Link>
           </li>
         </ul>
 
+        {/* Dynamic CTA / Subscriber Badge */}
         {isSubscriberChecked ? (
           isSubscriber ? (
             <div className="nav-subscriber-info" style={{ display: 'flex', alignItems: 'center' }}>
               <span className="subscriber-badge">SUBSCRIBER</span>
-              <button onClick={handleLogout} className="nav-logout-btn btn-hover-effect">
-                LOGOUT
+              <button 
+                onClick={handleLogout}
+                className="nav-logout-btn"
+                title="Log out of subscriber pass"
+              >
+                Log Out
               </button>
             </div>
           ) : (
@@ -178,10 +212,10 @@ export default function Navbar() {
             </Link>
           )
         ) : null}
-        
+
         <button 
           className="mobile-nav-toggle" 
-          aria-label="Toggle Menu"
+          aria-label="Toggle navigation menu"
           onClick={() => setIsMenuOpen(!isMenuOpen)}
         >
           <span className="bar"></span>

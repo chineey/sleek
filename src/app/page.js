@@ -48,16 +48,82 @@ async function getIsSubscriber() {
   }
 }
 
+async function getInitialArticles(isSubscriber) {
+  try {
+    const articles = await prisma.article.findMany({
+      orderBy: { order: 'asc' },
+    });
+
+    const FREE_CATEGORIES = ['fashion', 'culture', 'businessnews', 'sports', 'events', 'event', 'sleekpeak'];
+
+    return articles.map((art) => {
+      const normCat = art.category?.toLowerCase().replace(/\s+/g, '') || '';
+      const isSleekPeak = normCat === 'sleekpeak';
+      const isComics = normCat === 'comics';
+      const isFree = FREE_CATEGORIES.includes(normCat);
+
+      if (!isSubscriber) {
+        if (isFree) {
+          return {
+            ...art,
+            content: art.content,
+            isPaywalled: false,
+            isSleekPeak,
+            isComics,
+          };
+        } else if (isComics) {
+          return {
+            ...art,
+            content: '',
+            isPaywalled: true,
+            isSleekPeak,
+            isComics,
+          };
+        } else {
+          const previewContent = art.content
+            ? art.content.substring(0, Math.min(300, art.content.length)) + '...'
+            : '';
+          return {
+            ...art,
+            content: previewContent,
+            isPaywalled: true,
+            isSleekPeak,
+            isComics,
+          };
+        }
+      }
+
+      return {
+        ...art,
+        isPaywalled: false,
+        isSleekPeak,
+        isComics,
+      };
+    });
+  } catch (err) {
+    console.error('Failed to pre-fetch articles:', err);
+    return [];
+  }
+}
+
 export default async function Home() {
-  // Fetch both in parallel — no waterfall
-  const [cover, isSubscriber] = await Promise.all([getCover(), getIsSubscriber()]);
+  const isSubscriber = await getIsSubscriber();
+  // Fetch cover and articles in parallel on the server — eliminating client-side waterfall
+  const [cover, initialArticles] = await Promise.all([
+    getCover(),
+    getInitialArticles(isSubscriber),
+  ]);
 
   return (
     <>
       {cover?.image && (
         <link rel="preload" as="image" href={cover.image} fetchPriority="high" />
       )}
-      <HomeClient initialCover={cover} initialIsSubscriber={isSubscriber} />
+      <HomeClient
+        initialCover={cover}
+        initialIsSubscriber={isSubscriber}
+        initialArticles={initialArticles}
+      />
     </>
   );
 }

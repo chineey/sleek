@@ -378,14 +378,18 @@ export default function EventsPage() {
                     overflow: 'hidden',
                     backgroundColor: '#111',
                   }}>
-                    <div
+                    <img
+                      src={event.image || 'https://images.unsplash.com/photo-1514525253161-7a46d19cd819?q=80&w=1200&auto=format&fit=crop'}
+                      alt={event.title}
+                      loading="lazy"
+                      decoding="async"
                       style={{
                         width: '100%',
                         height: '100%',
-                        backgroundImage: `url('${event.image || 'https://images.unsplash.com/photo-1514525253161-7a46d19cd819?q=80&w=1200&auto=format&fit=crop'}')`,
-                        backgroundSize: 'cover',
-                        backgroundPosition: 'center',
+                        objectFit: 'cover',
+                        objectPosition: 'center',
                         transition: 'transform 0.8s ease',
+                        display: 'block',
                       }}
                     />
 

@@ -5,10 +5,19 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import Comments from './Comments';
 
-export default function HomeClient({ initialCover, initialIsSubscriber }) {
+export default function HomeClient({ initialCover, initialIsSubscriber, initialArticles = [] }) {
   const router = useRouter();
-  const [articles, setArticles] = useState([]);
-  const [filteredArticles, setFilteredArticles] = useState([]);
+
+  const normalizeCategory = (cat) => cat?.toLowerCase().replace(/\s+/g, '') || '';
+
+  const getInitialFiltered = (arts) => {
+    if (!arts || arts.length === 0) return [];
+    const fashion = arts.filter(a => normalizeCategory(a.category) === 'fashion');
+    return fashion.length > 0 ? fashion : arts;
+  };
+
+  const [articles, setArticles] = useState(initialArticles);
+  const [filteredArticles, setFilteredArticles] = useState(() => getInitialFiltered(initialArticles));
   const [events, setEvents] = useState([]);
   const [isLoadingEvents, setIsLoadingEvents] = useState(false);
   const [activeCategory, setActiveCategory] = useState('fashion');
@@ -100,8 +109,6 @@ export default function HomeClient({ initialCover, initialIsSubscriber }) {
     }
   }, []);
 
-  const normalizeCategory = (cat) => cat?.toLowerCase().replace(/\s+/g, '') || '';
-
   // Fetch events from Event API
   const fetchEvents = async () => {
     setIsLoadingEvents(true);
@@ -118,7 +125,7 @@ export default function HomeClient({ initialCover, initialIsSubscriber }) {
     }
   };
 
-  // Fetch articles from Database API
+  // Fetch articles from Database API (sync in background if not already pre-loaded)
   useEffect(() => {
     async function fetchArticles() {
       try {
@@ -126,15 +133,19 @@ export default function HomeClient({ initialCover, initialIsSubscriber }) {
         if (res.ok) {
           const data = await res.json();
           setArticles(data);
-          // Default to fashion category (first in arrangement)
-          const fashionArticles = data.filter(a => normalizeCategory(a.category) === 'fashion');
-          setFilteredArticles(fashionArticles.length > 0 ? fashionArticles : data);
+          if (activeCategory === 'fashion') {
+            const fashionArticles = data.filter(a => normalizeCategory(a.category) === 'fashion');
+            setFilteredArticles(fashionArticles.length > 0 ? fashionArticles : data);
+          }
         }
       } catch (err) {
         console.error('Failed to load articles:', err);
       }
     }
-    fetchArticles();
+
+    if (!initialArticles || initialArticles.length === 0) {
+      fetchArticles();
+    }
     fetchEvents();
   }, []);
 
@@ -410,10 +421,15 @@ export default function HomeClient({ initialCover, initialIsSubscriber }) {
                     style={{ cursor: 'pointer' }}
                   >
                     <div className="card-img-wrapper">
-                      <div
-                        className="card-img"
-                        style={{ backgroundImage: `url('${event.image}')` }}
-                      ></div>
+                      {event.image && (
+                        <img
+                          src={event.image}
+                          alt={event.title || 'Sleek Event'}
+                          loading="lazy"
+                          decoding="async"
+                          className="card-img"
+                        />
+                      )}
                       <span className="card-category">EVENT</span>
                     </div>
                     <div className="card-info">
@@ -480,10 +496,15 @@ export default function HomeClient({ initialCover, initialIsSubscriber }) {
                     style={{ cursor: 'pointer' }}
                   >
                     <div className="card-img-wrapper">
-                      <div
-                        className="card-img"
-                        style={{ backgroundImage: `url('${article.image}')` }}
-                      ></div>
+                      {article.image && (
+                        <img
+                          src={article.image}
+                          alt={article.title || 'Sleek Magazine Editorial'}
+                          loading="lazy"
+                          decoding="async"
+                          className="card-img"
+                        />
+                      )}
                       <span className="card-category">{article.category}</span>
 
                       {/* Lock overlay for Comics */}

@@ -155,9 +155,12 @@ export default function ShopPage() {
           <section className="shop-grid" style={{ marginBottom: '4rem' }}>
             {products.map((product) => (
               <article className="shop-card" key={product.id}>
-                <div
+                <img
+                  src={product.image || defaultImage}
+                  alt={product.name}
+                  loading="lazy"
+                  decoding="async"
                   className="shop-card-image"
-                  style={{ backgroundImage: `url('${product.image || defaultImage}')` }}
                 />
                 <div className="shop-card-content">
                   <div className="shop-card-meta">

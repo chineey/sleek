@@ -27,6 +27,10 @@ export default function CustomCursor() {
       if (!cursorInitialized) {
         cursor.style.opacity = '1';
         dot.style.opacity = '1';
+        cursorCoords.current.x = e.clientX;
+        cursorCoords.current.y = e.clientY;
+        dotCoords.current.x = e.clientX;
+        dotCoords.current.y = e.clientY;
         cursorInitialized = true;
       }
     };
@@ -39,57 +43,48 @@ export default function CustomCursor() {
       cursor.classList.remove('click');
     };
 
-    window.addEventListener('mousemove', handleMouseMove);
-    window.addEventListener('mousedown', handleMouseDown);
-    window.addEventListener('mouseup', handleMouseUp);
-
-    // Dynamic listener attaching
-    const addHoverClass = () => cursor.classList.add('hover');
-    const removeHoverClass = () => cursor.classList.remove('hover');
-
-    const updateInteractiveListeners = () => {
-      const interactiveElements = document.querySelectorAll(
-        'a, button, .filter-btn, .article-card, .btn-issue-view, [role="button"]'
-      );
-      interactiveElements.forEach((el) => {
-        el.removeEventListener('mouseenter', addHoverClass);
-        el.removeEventListener('mouseleave', removeHoverClass);
-        el.addEventListener('mouseenter', addHoverClass);
-        el.addEventListener('mouseleave', removeHoverClass);
-      });
+    // Blazing-fast event delegation for hover states — replaces MutationObserver and thousands of element listeners
+    const handleMouseOver = (e) => {
+      const target = e.target;
+      if (
+        target &&
+        typeof target.closest === 'function' &&
+        target.closest('a, button, .filter-btn, .article-card, .event-card, .btn-issue-view, [role="button"], input, textarea, select')
+      ) {
+        cursor.classList.add('hover');
+      } else {
+        cursor.classList.remove('hover');
+      }
     };
 
-    updateInteractiveListeners();
-
-    // Re-bind hover listeners if DOM updates dynamically
-    const observer = new MutationObserver(updateInteractiveListeners);
-    observer.observe(document.body, { childList: true, subtree: true });
+    window.addEventListener('mousemove', handleMouseMove, { passive: true });
+    window.addEventListener('mousedown', handleMouseDown, { passive: true });
+    window.addEventListener('mouseup', handleMouseUp, { passive: true });
+    document.addEventListener('mouseover', handleMouseOver, { passive: true });
 
     let animationFrameId;
     const animate = () => {
       // Lerp (Linear Interpolation) for smooth trailing delay
-      cursorCoords.current.x += (mouseCoords.current.x - cursorCoords.current.x) * 0.12;
-      cursorCoords.current.y += (mouseCoords.current.y - cursorCoords.current.y) * 0.12;
+      cursorCoords.current.x += (mouseCoords.current.x - cursorCoords.current.x) * 0.16;
+      cursorCoords.current.y += (mouseCoords.current.y - cursorCoords.current.y) * 0.16;
 
-      dotCoords.current.x += (mouseCoords.current.x - dotCoords.current.x) * 0.3;
-      dotCoords.current.y += (mouseCoords.current.y - dotCoords.current.y) * 0.3;
+      dotCoords.current.x += (mouseCoords.current.x - dotCoords.current.x) * 0.35;
+      dotCoords.current.y += (mouseCoords.current.y - dotCoords.current.y) * 0.35;
 
-      cursor.style.left = `${cursorCoords.current.x}px`;
-      cursor.style.top = `${cursorCoords.current.y}px`;
-
-      dot.style.left = `${dotCoords.current.x}px`;
-      dot.style.top = `${dotCoords.current.y}px`;
+      // GPU-accelerated 3D transform — runs on compositor thread without triggering CPU layout/reflow
+      cursor.style.transform = `translate3d(${cursorCoords.current.x}px, ${cursorCoords.current.y}px, 0) translate(-50%, -50%)`;
+      dot.style.transform = `translate3d(${dotCoords.current.x}px, ${dotCoords.current.y}px, 0) translate(-50%, -50%)`;
 
       animationFrameId = requestAnimationFrame(animate);
     };
 
-    animate();
+    animationFrameId = requestAnimationFrame(animate);
 
     return () => {
       window.removeEventListener('mousemove', handleMouseMove);
       window.removeEventListener('mousedown', handleMouseDown);
       window.removeEventListener('mouseup', handleMouseUp);
-      observer.disconnect();
+      document.removeEventListener('mouseover', handleMouseOver);
       cancelAnimationFrame(animationFrameId);
     };
   }, []);
