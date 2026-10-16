@@ -1648,12 +1648,31 @@ img {
 }
 
 
+.reader-cover-img-wrapper {
+    position: relative;
+    overflow: hidden;
+    aspect-ratio: 4/3;
+    width: 100%;
+    border: 1px solid var(--color-border);
+    background-color: #111;
+}
+
 .reader-cover-img {
     width: 100%;
-    aspect-ratio: 16/9;
+    height: 100%;
+    aspect-ratio: 4/3;
+    object-fit: cover;
+    object-position: center;
     background-size: cover;
     background-position: center;
+    background-repeat: no-repeat;
+    background-color: #111;
     border: 1px solid var(--color-border);
+    display: block;
+}
+
+.reader-cover-img-wrapper .reader-cover-img {
+    border: none;
 }
 
 .reader-body {

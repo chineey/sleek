@@ -470,6 +470,7 @@ export default function HomeClient({ initialCover, initialIsSubscriber, initialA
                 const catNorm = normalizeCategory(article.category);
                 const isSleekPeak = catNorm === 'sleekpeak';
                 const isComics = catNorm === 'comics';
+                const isBusinessNews = catNorm === 'businessnews' || catNorm === 'business' || catNorm.includes('business');
                 // Only comics are blurred for non-subscribers (sleekpeak is full access)
                 const isCardBlurred = !isSubscriber && isComics;
 
@@ -540,6 +541,8 @@ export default function HomeClient({ initialCover, initialIsSubscriber, initialA
                           ? '🔒 Subscribe to Unlock'
                           : isComics
                           ? 'Read Comic Chapter →'
+                          : isBusinessNews
+                          ? 'More Info'
                           : 'Read Story'}
                       </span>
                     </div>
@@ -768,10 +771,15 @@ export default function HomeClient({ initialCover, initialIsSubscriber, initialA
                     Join the conversation and leave a comment &darr;
                   </button>
                 </div>
-                <div
-                  className="reader-cover-img"
-                  style={{ backgroundImage: `url('${selectedArticle.image}')` }}
-                ></div>
+                {selectedArticle.image && (
+                  <div className="reader-cover-img-wrapper">
+                    <img
+                      src={selectedArticle.image}
+                      alt={selectedArticle.title || 'Sleek Magazine Editorial'}
+                      className="reader-cover-img"
+                    />
+                  </div>
+                )}
 
                 {isReaderPaywalled ? (
                   <div className="reader-paywall-container">
