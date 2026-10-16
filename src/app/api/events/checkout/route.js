@@ -27,6 +27,13 @@ export async function POST(req) {
       );
     }
 
+    if (!event.hasTickets) {
+      return NextResponse.json(
+        { error: 'Tickets are not on sale for this event.' },
+        { status: 400 }
+      );
+    }
+
     // Check if event date has passed
     if (new Date(event.date) < new Date()) {
       return NextResponse.json(

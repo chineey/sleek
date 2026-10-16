@@ -157,7 +157,7 @@ export default function EventComments({ eventId }) {
               textDecoration: 'underline'
             }}
           >
-            Sign in or Subscribe to Post Comments →
+            Sign in or Subscribe (₦2,500 every two months) to Post Comments →
           </a>
         </div>
       ) : (

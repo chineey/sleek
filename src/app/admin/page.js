@@ -92,6 +92,7 @@ export default function Admin() {
   const [eventAddress, setEventAddress] = useState('');
   const [eventLat, setEventLat] = useState('');
   const [eventLng, setEventLng] = useState('');
+  const [eventHasTickets, setEventHasTickets] = useState(false);
   const [eventTicketPrice, setEventTicketPrice] = useState('5000');
   const [eventDescription, setEventDescription] = useState('');
   const [eventImage, setEventImage] = useState('');
@@ -478,6 +479,7 @@ export default function Admin() {
     setEventAddress('');
     setEventLat('');
     setEventLng('');
+    setEventHasTickets(false);
     setEventTicketPrice('5000');
     setEventDescription('');
     setEventImage('');
@@ -509,6 +511,7 @@ export default function Admin() {
       setEventAddress(selected.address);
       setEventLat(selected.latitude != null ? selected.latitude.toString() : '');
       setEventLng(selected.longitude != null ? selected.longitude.toString() : '');
+      setEventHasTickets(Boolean(selected.hasTickets));
       setEventTicketPrice(selected.ticketPrice !== undefined && selected.ticketPrice !== null ? selected.ticketPrice.toString() : '5000');
       setEventDescription(selected.description);
       setEventImage(selected.image || '');
@@ -549,7 +552,8 @@ export default function Admin() {
         address: eventAddress,
         latitude: latNum,
         longitude: lngNum,
-        ticketPrice: eventTicketPrice ? parseInt(eventTicketPrice, 10) : 5000,
+        hasTickets: eventHasTickets,
+        ticketPrice: eventTicketPrice !== '' && !isNaN(parseInt(eventTicketPrice, 10)) ? parseInt(eventTicketPrice, 10) : 0,
         description: eventDescription,
         image: eventImage,
         active: eventActive,
@@ -2926,7 +2930,7 @@ export default function Admin() {
               <optgroup label="Edit Existing Events">
                 {eventsList.map((ev) => (
                   <option key={ev.id} value={ev.id}>
-                    {ev.title} ({new Date(ev.date).toLocaleDateString()})
+                    {ev.title} ({new Date(ev.date).toLocaleDateString()}) • {ev.ticketPrice && ev.ticketPrice > 0 ? `₦${Number(ev.ticketPrice).toLocaleString()}` : 'Free'}{ev.hasTickets ? ' (Online Tickets)' : ' (Door/RSVP)'}
                   </option>
                 ))}
               </optgroup>
@@ -3024,23 +3028,45 @@ export default function Admin() {
                   </div>
                 </div>
 
-                <div className="form-group">
-                  <label htmlFor="eventTicketPrice">Ticket Price (₦ Naira)</label>
-                  <input
-                    id="eventTicketPrice"
-                    type="number"
-                    min="0"
-                    step="500"
-                    className="form-input"
-                    value={eventTicketPrice}
-                    onChange={(e) => setEventTicketPrice(e.target.value)}
-                    required
-                    disabled={!selectedEventId || isSubmitting}
-                    placeholder="e.g. 5000"
-                  />
-                  <small style={{ color: 'var(--color-muted)', fontSize: '0.75rem', marginTop: '0.25rem', display: 'block' }}>
-                    Standard admission ticket price attendees will pay on checkout.
-                  </small>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+                  <div className="form-group">
+                    <label htmlFor="eventHasTickets" style={{ display: 'block', marginBottom: '0.4rem', fontWeight: 600 }}>
+                      Online Ticket Sales
+                    </label>
+                    <select
+                      id="eventHasTickets"
+                      className="form-select"
+                      value={eventHasTickets ? 'yes' : 'no'}
+                      onChange={(e) => setEventHasTickets(e.target.value === 'yes')}
+                      disabled={!selectedEventId || isSubmitting}
+                    >
+                      <option value="no">No Tickets Online (RSVP / Pay at Door / Free)</option>
+                      <option value="yes">Yes — Sell Admission Tickets Online</option>
+                    </select>
+                    <small style={{ color: 'var(--color-muted)', fontSize: '0.75rem', marginTop: '0.25rem', display: 'block' }}>
+                      Controls whether the &quot;Get Tickets&quot; checkout button is active.
+                    </small>
+                  </div>
+
+                  <div className="form-group">
+                    <label htmlFor="eventTicketPrice" style={{ display: 'block', marginBottom: '0.4rem', fontWeight: 600 }}>
+                      Admission / Ticket Price (₦ Naira)
+                    </label>
+                    <input
+                      id="eventTicketPrice"
+                      type="number"
+                      min="0"
+                      step="500"
+                      className="form-input"
+                      value={eventTicketPrice}
+                      onChange={(e) => setEventTicketPrice(e.target.value)}
+                      disabled={!selectedEventId || isSubmitting}
+                      placeholder="e.g. 5000 (0 for Free Entry)"
+                    />
+                    <small style={{ color: 'var(--color-muted)', fontSize: '0.75rem', marginTop: '0.25rem', display: 'block' }}>
+                      Price is always visible to visitors on cards &amp; modal (set 0 for Free Entry).
+                    </small>
+                  </div>
                 </div>
 
                 <div className="form-group">

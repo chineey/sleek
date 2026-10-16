@@ -164,7 +164,7 @@ export default function Comments({ articleId, initialIsSubscriber }) {
             <div>
               <h4 className={styles.subscribeTitle}>Join the Conversation</h4>
               <p className={styles.subscribeText}>
-                Subscribe to leave a comment, reply to readers, and take part in the discussion.
+                Subscribe (₦2,500 every two months) to leave a comment, reply to readers, and take part in the discussion.
               </p>
             </div>
           </div>

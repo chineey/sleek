@@ -583,7 +583,7 @@ export default function HomeClient({ initialCover, initialIsSubscriber }) {
               <>
                 <h2>Receive the Print &amp; Digital Editions</h2>
                 <p>
-                  Subscribe for ₦2,500 for bi-monthly access to receive full access to our digital premium archives, complete issues, and exclusive events.{' '}
+                  Subscribe for ₦2,500 bi-monthly (₦2,500 every two months) to receive full access to our digital premium archives, complete issues, and exclusive events.{' '}
                   <Link
                     href="/shop"
                     style={{
@@ -597,6 +597,22 @@ export default function HomeClient({ initialCover, initialIsSubscriber }) {
                     Click here to shop sleek physical issues and pick up from a store around you with your sleek pass
                   </Link>
                 </p>
+                <div style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '0.5rem',
+                  padding: '0.4rem 0.85rem',
+                  backgroundColor: 'rgba(186, 156, 135, 0.1)',
+                  border: '1px solid rgba(186, 156, 135, 0.25)',
+                  borderRadius: '4px',
+                  marginBottom: '1.25rem',
+                  fontSize: '0.8rem',
+                  color: 'var(--color-bronze)',
+                  fontWeight: 600,
+                  letterSpacing: '0.04em',
+                }}>
+                  <span>✓</span> Bi-monthly plan: ₦2,500 every 2 months (full recurring access)
+                </div>
 
                 <form className="subscribe-form" onSubmit={handleSubscribe}>
                   <div className="input-group">
@@ -752,7 +768,7 @@ export default function HomeClient({ initialCover, initialIsSubscriber }) {
                           <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
                         </svg>
                         <h3>Subscribe to Read Full Story</h3>
-                        <p>This story requires an active digital subscription. Subscribe for ₦2,500 to unlock full issues, articles, and our complete archives for 2 months.</p>
+                        <p>This story requires an active digital subscription. Subscribe for ₦2,500 every two months (bi-monthly) to unlock full issues, articles, and our complete archives.</p>
                         <button
                           className="paywall-btn"
                           onClick={() => {
@@ -763,7 +779,7 @@ export default function HomeClient({ initialCover, initialIsSubscriber }) {
                             }
                           }}
                         >
-                          Unlock Now — ₦2,500
+                          Unlock Now — ₦2,500 every 2 months
                         </button>
                       </div>
                     </div>

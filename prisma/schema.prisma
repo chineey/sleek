@@ -142,6 +142,7 @@ model Event {
   longitude   Float?         // Exact GPS Longitude (optional)
   image       String         // 4:3 photo
   ticketPrice Int            @default(5000)
+  hasTickets  Boolean        @default(false)
   active      Boolean        @default(true)
   order       Int            @default(0)
   ratings     EventRating[]

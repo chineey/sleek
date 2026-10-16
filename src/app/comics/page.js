@@ -687,7 +687,7 @@ function ComicsContent() {
                       marginBottom: '2rem',
                     }}
                   >
-                    You have reached the preview limit. Complete comic chapters, graphic issues, and digital archives require an active subscription (₦2,500 bi-monthly).
+                    You have reached the preview limit. Complete comic chapters, graphic issues, and digital archives require an active subscription (₦2,500 every two months / bi-monthly).
                   </p>
 
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
@@ -706,7 +706,7 @@ function ComicsContent() {
                         transition: 'var(--transition-fast)',
                       }}
                     >
-                      Subscribe Now &bull; ₦2,500
+                      Subscribe Now &bull; ₦2,500 Every 2 Months
                     </Link>
                     <button
                       type="button"

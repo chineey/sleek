@@ -492,7 +492,7 @@ export default function EventsPage() {
                     </p>
 
                     <p style={{
-                      margin: '0 0 1.5rem 0',
+                      margin: '0 0 1.25rem 0',
                       fontSize: '0.9rem',
                       color: 'var(--color-muted)',
                       lineHeight: 1.5,
@@ -505,6 +505,34 @@ export default function EventsPage() {
                     }}>
                       {event.description}
                     </p>
+
+                    {/* Admission Price Info - Always visible whether selling online tickets or not */}
+                    <div style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      padding: '0.55rem 0.85rem',
+                      backgroundColor: 'rgba(255, 255, 255, 0.03)',
+                      borderRadius: '4px',
+                      border: '1px solid rgba(255, 255, 255, 0.07)',
+                      marginBottom: '1rem',
+                    }}>
+                      <span style={{ fontSize: '0.75rem', color: 'var(--color-muted)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+                        Admission
+                      </span>
+                      <div style={{ textAlign: 'right' }}>
+                        <span style={{ fontSize: '0.9rem', fontWeight: 700, color: 'var(--color-bronze)' }}>
+                          {event.ticketPrice && event.ticketPrice > 0
+                            ? `₦${Number(event.ticketPrice).toLocaleString()}`
+                            : 'Free Entry'}
+                        </span>
+                        {!event.hasTickets && (
+                          <span style={{ display: 'block', fontSize: '0.68rem', color: 'var(--color-muted)' }}>
+                            {event.ticketPrice && event.ticketPrice > 0 ? 'Pay at door / RSVP' : 'No ticket needed'}
+                          </span>
+                        )}
+                      </div>
+                    </div>
 
                     {/* 1-5 Star Rating Section (Active after party date, for all users) */}
                     {isPast ? (
@@ -546,7 +574,7 @@ export default function EventsPage() {
 
                     {/* Action Buttons: Get Tickets, Directions & More Info */}
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '0.65rem', marginTop: 'auto' }}>
-                      {!isPast && (
+                      {!isPast && event.hasTickets && (
                         <button
                           type="button"
                           onClick={() => openTicketModal(event)}
@@ -728,6 +756,45 @@ export default function EventsPage() {
               </span>
             </div>
 
+            {/* Admission Price Box - Always visible whether online tickets are sold or not */}
+            <div style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              padding: '0.85rem 1.15rem',
+              backgroundColor: 'rgba(186, 156, 135, 0.08)',
+              border: '1px solid rgba(186, 156, 135, 0.25)',
+              borderRadius: '6px',
+              marginBottom: '1.25rem',
+            }}>
+              <div>
+                <span style={{ display: 'block', fontSize: '0.7rem', textTransform: 'uppercase', letterSpacing: '0.08em', color: 'var(--color-muted)', marginBottom: '0.2rem' }}>
+                  Admission / Entry
+                </span>
+                <span style={{ fontSize: '1.25rem', fontWeight: 700, color: 'var(--color-bronze)' }}>
+                  {selectedEvent.ticketPrice && selectedEvent.ticketPrice > 0
+                    ? `₦${Number(selectedEvent.ticketPrice).toLocaleString()}`
+                    : 'Free Entry'}
+                </span>
+              </div>
+              <span style={{
+                fontSize: '0.75rem',
+                color: selectedEvent.hasTickets ? 'var(--color-bronze)' : 'var(--color-muted)',
+                fontWeight: 600,
+                letterSpacing: '0.04em',
+                padding: '0.35rem 0.75rem',
+                backgroundColor: 'rgba(255, 255, 255, 0.04)',
+                borderRadius: '4px',
+                border: '1px solid rgba(255, 255, 255, 0.08)',
+              }}>
+                {selectedEvent.hasTickets
+                  ? '🎟 Tickets Sold Online'
+                  : selectedEvent.ticketPrice && selectedEvent.ticketPrice > 0
+                  ? '🚪 Pay at door / RSVP'
+                  : '✨ Free Admission'}
+              </span>
+            </div>
+
             {/* Directions & Ticket Action */}
             <div style={{ display: 'flex', gap: '0.75rem', marginBottom: '2rem', flexWrap: 'wrap' }}>
               <button
@@ -749,7 +816,7 @@ export default function EventsPage() {
                 Get Directions (Google Maps) &rarr;
               </button>
 
-              {new Date(selectedEvent.date) >= now && (
+              {new Date(selectedEvent.date) >= now && selectedEvent.hasTickets && (
                 <button
                   type="button"
                   onClick={() => openTicketModal(selectedEvent)}
