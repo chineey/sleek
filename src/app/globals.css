@@ -1023,6 +1023,38 @@ img {
     background-color: var(--color-white);
 }
 
+.card-footer-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    width: 100%;
+    margin-top: auto;
+    padding-top: 0.25rem;
+}
+
+.card-share-btn {
+    background: transparent;
+    border: 1px solid rgba(186, 156, 135, 0.3);
+    color: var(--color-bronze);
+    width: 30px;
+    height: 30px;
+    border-radius: 50%;
+    display: inline-flex;
+    justify-content: center;
+    align-items: center;
+    cursor: pointer;
+    transition: var(--transition-fast);
+    padding: 0;
+    flex-shrink: 0;
+}
+
+.card-share-btn:hover {
+    background: rgba(186, 156, 135, 0.2);
+    border-color: var(--color-bronze);
+    color: var(--color-white);
+    transform: scale(1.1);
+}
+
 /* --- Manifesto / About Section --- */
 .about-section {
     padding: 10rem 0;
@@ -1655,6 +1687,38 @@ img {
 
 .reader-join-conversation-btn:hover svg {
     transform: translateY(2px);
+}
+
+.reader-share-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.6rem;
+    background: rgba(200, 150, 102, 0.08);
+    border: 1px solid rgba(200, 150, 102, 0.28);
+    padding: 0.55rem 1.35rem;
+    border-radius: 9999px;
+    color: var(--color-bronze);
+    font-size: 0.8rem;
+    font-weight: 600;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    cursor: pointer;
+    transition: var(--transition-fast);
+    width: fit-content;
+}
+
+.reader-share-btn:hover {
+    background: rgba(200, 150, 102, 0.18);
+    border-color: var(--color-bronze);
+    color: var(--color-white);
+    transform: translateY(-1px);
+    box-shadow: 0 4px 15px rgba(200, 150, 102, 0.15);
+}
+
+.article-back-link:hover {
+    color: var(--color-white) !important;
+    transform: translateX(-4px);
 }
 
 

@@ -175,8 +175,8 @@ export default function HomeClient({ initialCover, initialIsSubscriber, initialA
     return text.length > 150 ? text.substring(0, 150) + '...' : text;
   };
 
-  // Reader Modal Operations
-  const openReader = (article) => {
+  // Reader Modal Operations with Shareable URL Sync
+  const openReader = (article, updateUrl = true) => {
     setSelectedArticle(article);
     setIsReaderActive(true);
     document.body.style.overflow = 'hidden'; // Lock background scroll
@@ -184,24 +184,93 @@ export default function HomeClient({ initialCover, initialIsSubscriber, initialA
     if (readerModalRef.current) {
       readerModalRef.current.scrollTop = 0;
     }
+    if (updateUrl && typeof window !== 'undefined' && article?.id) {
+      window.history.pushState({ articleId: article.id }, '', `/article/${article.id}`);
+    }
   };
 
-  const closeReader = () => {
+  const closeReader = (restoreUrl = true) => {
     setIsReaderActive(false);
     document.body.style.overflow = ''; // Restore background scroll
     setSelectedArticle(null);
+    if (restoreUrl && typeof window !== 'undefined' && window.location.pathname.startsWith('/article/')) {
+      window.history.replaceState({}, '', '/');
+    }
   };
 
-  // Close reader on Escape keypress
+  // Close reader on Escape keypress or browser Back/Forward
   useEffect(() => {
     const handleKeyDown = (e) => {
       if (e.key === 'Escape' && isReaderActive) {
         closeReader();
       }
     };
+    const handlePopState = () => {
+      if (isReaderActive) {
+        closeReader(false);
+      }
+    };
     window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
+    window.addEventListener('popstate', handlePopState);
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+      window.removeEventListener('popstate', handlePopState);
+    };
   }, [isReaderActive]);
+
+  // Open article automatically if ?article=<id> or ?story=<id> is in URL
+  useEffect(() => {
+    if (typeof window === 'undefined' || articles.length === 0) return;
+    const params = new URLSearchParams(window.location.search);
+    const targetArticleId = params.get('article') || params.get('story');
+    if (targetArticleId) {
+      const found = articles.find((a) => String(a.id) === String(targetArticleId));
+      if (found) {
+        openReader(found, false);
+      }
+    }
+  }, [articles]);
+
+  // Share Article Handler
+  const handleShareArticle = async (article) => {
+    if (!article || typeof window === 'undefined') return;
+    const shareUrl = `${window.location.origin}/article/${article.id}`;
+    const cleanExcerpt = getExcerpt(article.content);
+
+    const shareData = {
+      title: `${article.title} | SLEEK Magazine`,
+      text: cleanExcerpt,
+      url: shareUrl,
+    };
+
+    if (navigator.share && navigator.canShare && navigator.canShare(shareData)) {
+      try {
+        await navigator.share(shareData);
+        return;
+      } catch (err) {
+        if (err.name !== 'AbortError') {
+          console.error('Share error:', err);
+        }
+      }
+    }
+
+    // Fallback: Copy to clipboard
+    try {
+      if (navigator.clipboard?.writeText) {
+        await navigator.clipboard.writeText(shareUrl);
+      } else {
+        const input = document.createElement('input');
+        input.value = shareUrl;
+        document.body.appendChild(input);
+        input.select();
+        document.execCommand('copy');
+        document.body.removeChild(input);
+      }
+      showToast('Article link copied to clipboard!', 'success');
+    } catch {
+      showToast('Could not copy link.', 'error');
+    }
+  };
 
   // Track scroll progress inside reader modal
   const handleReaderScroll = () => {
@@ -536,15 +605,37 @@ export default function HomeClient({ initialCover, initialIsSubscriber, initialA
                       <span className="card-date">{article.date}</span>
                       <h3 className="card-title">{article.title}</h3>
                       <p className="card-excerpt">{getExcerpt(article.content)}</p>
-                      <span className="card-read-more">
-                        {isCardBlurred
-                          ? '🔒 Subscribe to Unlock'
-                          : isComics
-                          ? 'Read Comic Chapter →'
-                          : isBusinessNews
-                          ? 'More Info'
-                          : 'Read Story'}
-                      </span>
+                      <div className="card-footer-row">
+                        <span className="card-read-more">
+                          {isCardBlurred
+                            ? '🔒 Subscribe to Unlock'
+                            : isComics
+                            ? 'Read Comic Chapter →'
+                            : isBusinessNews
+                            ? 'More Info'
+                            : 'Read Story'}
+                        </span>
+                        {!isCardBlurred && !isComics && (
+                          <button
+                            type="button"
+                            className="card-share-btn"
+                            title="Share story"
+                            aria-label="Share story"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleShareArticle(article);
+                            }}
+                          >
+                            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75">
+                              <circle cx="18" cy="5" r="3"></circle>
+                              <circle cx="6" cy="12" r="3"></circle>
+                              <circle cx="18" cy="19" r="3"></circle>
+                              <line x1="8.59" y1="13.51" x2="15.42" y2="17.49"></line>
+                              <line x1="15.41" y1="6.51" x2="8.59" y2="10.49"></line>
+                            </svg>
+                          </button>
+                        )}
+                      </div>
                     </div>
                   </article>
                 );
@@ -770,17 +861,35 @@ export default function HomeClient({ initialCover, initialIsSubscriber, initialA
                   <div className="reader-author-date">
                     {selectedArticle.author} &bull; {selectedArticle.date}
                   </div>
-                  <button
-                    type="button"
-                    className="reader-join-conversation-btn"
-                    onClick={scrollToComments}
-                    aria-label="Join the conversation and leave a comment"
-                  >
-                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75">
-                      <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
-                    </svg>
-                    Join the conversation and leave a comment &darr;
-                  </button>
+                  <div style={{ display: 'flex', gap: '0.75rem', justifyContent: 'center', alignItems: 'center', flexWrap: 'wrap', marginTop: '0.5rem' }}>
+                    <button
+                      type="button"
+                      className="reader-share-btn"
+                      onClick={() => handleShareArticle(selectedArticle)}
+                      aria-label="Share this story"
+                    >
+                      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75">
+                        <circle cx="18" cy="5" r="3"></circle>
+                        <circle cx="6" cy="12" r="3"></circle>
+                        <circle cx="18" cy="19" r="3"></circle>
+                        <line x1="8.59" y1="13.51" x2="15.42" y2="17.49"></line>
+                        <line x1="15.41" y1="6.51" x2="8.59" y2="10.49"></line>
+                      </svg>
+                      Share Story
+                    </button>
+                    <button
+                      type="button"
+                      className="reader-join-conversation-btn"
+                      onClick={scrollToComments}
+                      aria-label="Join the conversation and leave a comment"
+                      style={{ margin: 0 }}
+                    >
+                      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75">
+                        <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
+                      </svg>
+                      Join the conversation &darr;
+                    </button>
+                  </div>
                 </div>
                 {selectedArticle.image && (
                   <div className="reader-cover-img-wrapper">

@@ -23,7 +23,8 @@ export default function Navbar() {
   const isShopActive = pathname === '/shop';
   const isEventsActive = pathname === '/events' || pathname.startsWith('/events');
   const isComicsActive = pathname === '/comics' || pathname.startsWith('/comics');
-  const isSubPage = isShopActive || isEventsActive || isComicsActive;
+  const isArticleActive = pathname === '/article' || pathname.startsWith('/article');
+  const isSubPage = isShopActive || isEventsActive || isComicsActive || isArticleActive;
 
   const checkSubscriberStatus = async () => {
     try {
