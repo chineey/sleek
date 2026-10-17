@@ -674,7 +674,9 @@ export default function HomeClient({ initialCover, initialIsSubscriber, initialA
             <div className="about-frame">
               <div
                 className="about-image"
-                style={{ backgroundImage: "url('https://images.unsplash.com/photo-1512436991641-6745cdb1723f?q=80&w=800&auto=format&fit=crop')" }}
+                style={{
+                  backgroundImage: `url('${cover?.editorialImage || "https://images.unsplash.com/photo-1512436991641-6745cdb1723f?q=80&w=800&auto=format&fit=crop"}')`
+                }}
               ></div>
               <div className="about-border"></div>
             </div>

@@ -14,6 +14,7 @@ const DEFAULT_COVER = {
   url: 'www.sleekmagazine.com',
   social: '@sleekpeak',
   image: 'https://images.unsplash.com/photo-1509631179647-0177331693ae?q=80&w=1200&auto=format&fit=crop',
+  editorialImage: 'https://images.unsplash.com/photo-1512436991641-6745cdb1723f?q=80&w=800&auto=format&fit=crop',
 };
 
 async function getCover() {

@@ -24,6 +24,7 @@ export async function GET() {
           url: "www.sleekmagazine.com",
           social: "@sleekpeak",
           image: "https://images.unsplash.com/photo-1509631179647-0177331693ae?q=80&w=1200&auto=format&fit=crop",
+          editorialImage: "https://images.unsplash.com/photo-1512436991641-6745cdb1723f?q=80&w=800&auto=format&fit=crop",
         }
       });
     }
@@ -49,28 +50,31 @@ export async function PUT(req) {
       );
     }
 
-    const { title, issue, label, tagline, url, social, image } = await req.json();
+    const { title, issue, label, tagline, url, social, image, editorialImage } = await req.json();
+
+    const updateData = {};
+    if (title !== undefined) updateData.title = title;
+    if (issue !== undefined) updateData.issue = issue;
+    if (label !== undefined) updateData.label = label;
+    if (tagline !== undefined) updateData.tagline = tagline;
+    if (url !== undefined) updateData.url = url;
+    if (social !== undefined) updateData.social = social;
+    if (image !== undefined && image !== "") updateData.image = image;
+    if (editorialImage !== undefined && editorialImage !== "") updateData.editorialImage = editorialImage;
 
     const updated = await prisma.coverSettings.upsert({
       where: { id: 1 },
-      update: {
-        title: title !== undefined ? title : "",
-        issue: issue !== undefined ? issue : "",
-        label: label !== undefined ? label : "",
-        tagline: tagline !== undefined ? tagline : "",
-        url: url !== undefined ? url : "",
-        social: social !== undefined ? social : "",
-        image: image || "https://images.unsplash.com/photo-1509631179647-0177331693ae?q=80&w=1200&auto=format&fit=crop",
-      },
+      update: updateData,
       create: {
         id: 1,
-        title: title !== undefined ? title : "",
-        issue: issue !== undefined ? issue : "",
-        label: label !== undefined ? label : "",
-        tagline: tagline !== undefined ? tagline : "",
-        url: url !== undefined ? url : "",
-        social: social !== undefined ? social : "",
+        title: title !== undefined ? title : "SLEEK",
+        issue: issue !== undefined ? issue : "ISH. 01",
+        label: label !== undefined ? label : "MAGAZINE",
+        tagline: tagline !== undefined ? tagline : "A New WAVE",
+        url: url !== undefined ? url : "www.sleekmagazine.com",
+        social: social !== undefined ? social : "@sleekpeak",
         image: image || "https://images.unsplash.com/photo-1509631179647-0177331693ae?q=80&w=1200&auto=format&fit=crop",
+        editorialImage: editorialImage || "https://images.unsplash.com/photo-1512436991641-6745cdb1723f?q=80&w=800&auto=format&fit=crop",
       },
     });
 

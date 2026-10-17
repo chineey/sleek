@@ -51,6 +51,9 @@ export default function Admin() {
   const [coverUrl, setCoverUrl] = useState('');
   const [coverSocial, setCoverSocial] = useState('');
   const [coverImage, setCoverImage] = useState('');
+  const [editorialImage, setEditorialImage] = useState('');
+  const [isSavingEditorial, setIsSavingEditorial] = useState(false);
+  const [editorialFeedback, setEditorialFeedback] = useState({ message: '', type: '' });
 
   // Shop Products states
   const defaultProductImage = 'https://images.unsplash.com/photo-1521572267360-ee0c2909d518?q=80&w=1200&auto=format&fit=crop';
@@ -117,13 +120,14 @@ export default function Admin() {
       const res = await fetch('/api/cover');
       if (res.ok) {
         const data = await res.json();
-        setCoverTitle(data.title);
-        setCoverIssue(data.issue);
-        setCoverLabel(data.label);
-        setCoverTagline(data.tagline);
-        setCoverUrl(data.url);
-        setCoverSocial(data.social);
-        setCoverImage(data.image);
+        setCoverTitle(data.title || '');
+        setCoverIssue(data.issue || '');
+        setCoverLabel(data.label || '');
+        setCoverTagline(data.tagline || '');
+        setCoverUrl(data.url || '');
+        setCoverSocial(data.social || '');
+        setCoverImage(data.image || '');
+        setEditorialImage(data.editorialImage || 'https://images.unsplash.com/photo-1512436991641-6745cdb1723f?q=80&w=800&auto=format&fit=crop');
       }
     } catch (err) {
       console.error('Failed to fetch cover settings:', err);
@@ -132,7 +136,6 @@ export default function Admin() {
 
   const handleSaveCoverSettings = async (e) => {
     e.preventDefault();
-
 
     setIsSubmitting(true);
     setFeedback({ message: '', type: '' });
@@ -151,6 +154,7 @@ export default function Admin() {
           url: coverUrl,
           social: coverSocial,
           image: coverImage,
+          editorialImage,
         }),
       });
 
@@ -166,6 +170,38 @@ export default function Admin() {
       setFeedback({ message: 'Network error saving cover settings.', type: 'error' });
     } finally {
       setIsSubmitting(false);
+    }
+  };
+
+  const handleSaveEditorialPhoto = async (e) => {
+    if (e) e.preventDefault();
+
+    setIsSavingEditorial(true);
+    setEditorialFeedback({ message: '', type: '' });
+
+    try {
+      const res = await fetch('/api/cover', {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          editorialImage,
+        }),
+      });
+
+      const data = await res.json();
+
+      if (res.ok) {
+        setEditorialFeedback({ message: 'Editorial photo updated and saved successfully!', type: 'success' });
+      } else {
+        setEditorialFeedback({ message: data.error || 'Failed to save editorial photo.', type: 'error' });
+      }
+    } catch (err) {
+      console.error('Editorial photo save error:', err);
+      setEditorialFeedback({ message: 'Network error saving editorial photo.', type: 'error' });
+    } finally {
+      setIsSavingEditorial(false);
     }
   };
 
@@ -767,10 +803,18 @@ export default function Admin() {
       }
 
       const isCoverTab = activeTab === 'cover';
+      const isEditorialTab = activeTab === 'editorial';
 
-      // Cover is 1600x1000 (16:10). Articles, Products, and Events are all 1200x900 (4:3).
-      const canvasWidth = isCoverTab ? 1600 : 1200;
-      const canvasHeight = isCoverTab ? 1000 : 900;
+      // Cover is 1600x1000 (16:10). Editorial Photo is 900x1200 (3:4 portrait). Articles, Products, and Events are all 1200x900 (4:3).
+      let canvasWidth = 1200;
+      let canvasHeight = 900;
+      if (isCoverTab) {
+        canvasWidth = 1600;
+        canvasHeight = 1000;
+      } else if (isEditorialTab) {
+        canvasWidth = 900;
+        canvasHeight = 1200;
+      }
 
       // Extract exact subpixel bounds from DOM bounding boxes
       const vpRect = viewport.getBoundingClientRect();
@@ -824,6 +868,8 @@ export default function Admin() {
             if (res.ok && data.url) {
               if (activeTab === 'cover') {
                 setCoverImage(data.url);
+              } else if (activeTab === 'editorial') {
+                setEditorialImage(data.url);
               } else if (activeTab === 'products') {
                 setProductForm((prev) => ({ ...prev, image: data.url }));
               } else if (activeTab === 'events') {
@@ -1390,6 +1436,24 @@ export default function Admin() {
           }}
         >
           Cover Settings
+        </button>
+        <button
+          type="button"
+          onClick={() => { setActiveTab('editorial'); fetchCoverSettings(); setFeedback({ message: '', type: '' }); setEditorialFeedback({ message: '', type: '' }); }}
+          style={{
+            background: 'none',
+            border: 'none',
+            color: activeTab === 'editorial' ? 'var(--color-bronze)' : 'var(--color-muted)',
+            fontSize: '0.85rem',
+            fontWeight: 600,
+            letterSpacing: '0.15em',
+            padding: '1rem 0',
+            borderBottom: activeTab === 'editorial' ? '2px solid var(--color-bronze)' : '2px solid transparent',
+            cursor: 'pointer',
+            textTransform: 'uppercase'
+          }}
+        >
+          Editorial Photo
         </button>
         <button
           type="button"
@@ -3311,6 +3375,225 @@ export default function Admin() {
             </div>
           </div>
         </>
+      ) : activeTab === 'editorial' ? (
+        <div className="admin-grid">
+          {/* Left Column: Editorial Photo Upload Controls */}
+          <div>
+            <span className="subtitle-tag" style={{ marginBottom: '1rem', display: 'block' }}>
+              EDITORIAL PROFILE
+            </span>
+            <h2 className="admin-title" style={{ fontSize: '1.75rem', marginBottom: '1rem', fontFamily: 'var(--font-serif)', color: 'var(--color-white)' }}>
+              Editor-in-Chief Photo
+            </h2>
+            <p style={{ color: 'var(--color-muted)', fontSize: '0.9rem', lineHeight: 1.6, marginBottom: '2rem' }}>
+              This photo appears in the <strong>Our Manifesto</strong> section on the homepage directly under the Editor-in-Chief profile (Kennanyere Njoku). Upload a portrait photograph.
+            </p>
+
+            <div style={{
+              backgroundColor: 'rgba(186, 156, 135, 0.05)',
+              border: '1px solid rgba(186, 156, 135, 0.2)',
+              borderRadius: '6px',
+              padding: '1.25rem',
+              marginBottom: '2rem',
+              display: 'flex',
+              flexDirection: 'column',
+              gap: '0.75rem'
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: 'var(--color-bronze)', fontSize: '0.85rem', fontWeight: 600 }}>
+                <span>✓</span> Frame Aspect Ratio: 3:4 Portrait
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: 'var(--color-muted)', fontSize: '0.8rem' }}>
+                <span>•</span> Homepage section: <strong style={{ color: 'var(--color-white)' }}>Our Manifesto (#about)</strong>
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: 'var(--color-muted)', fontSize: '0.8rem' }}>
+                <span>•</span> Profile: <strong style={{ color: 'var(--color-white)' }}>Editor-in-Chief (Kennanyere Njoku)</strong>
+              </div>
+            </div>
+
+            <div className="form-group">
+              <label>Upload New Editorial Portrait</label>
+              <label
+                className="upload-zone"
+                style={{
+                  cursor: 'pointer',
+                  border: '1px dashed var(--color-bronze)',
+                  padding: '2.5rem 1.5rem',
+                  borderRadius: '6px',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  backgroundColor: 'rgba(255,255,255,0.02)'
+                }}
+              >
+                <input
+                  id="upload-editorial-input"
+                  type="file"
+                  accept="image/*"
+                  onChange={handleImageUploadSelect}
+                  style={{ display: 'none' }}
+                  disabled={isUploading || isSavingEditorial}
+                />
+                <svg
+                  width="36"
+                  height="36"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="var(--color-bronze)"
+                  strokeWidth="1.5"
+                  style={{ marginBottom: '0.75rem' }}
+                >
+                  <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M17 8l-5-5-5 5M12 3v12" />
+                </svg>
+                <span className="upload-text" style={{ fontWeight: 600, color: 'var(--color-white)', fontSize: '0.9rem' }}>
+                  {isUploading ? 'Uploading & Cropping Photo...' : 'Click to select & crop photo (3:4)'}
+                </span>
+                <span style={{ fontSize: '0.75rem', color: 'var(--color-muted)', marginTop: '0.35rem' }}>
+                  Supports JPEG, PNG, WEBP — Built-in zoom and positioning
+                </span>
+              </label>
+            </div>
+
+            {editorialFeedback.message && (
+              <div className={`admin-feedback ${editorialFeedback.type}`} style={{ marginBottom: '1.5rem' }}>
+                {editorialFeedback.message}
+              </div>
+            )}
+
+            <div className="admin-button-group" style={{ display: 'flex', gap: '1rem', marginTop: '2rem' }}>
+              <button
+                type="button"
+                className="publish-btn"
+                style={{ flex: 1, padding: '1rem' }}
+                onClick={handleSaveEditorialPhoto}
+                disabled={isSavingEditorial || isUploading}
+              >
+                {isSavingEditorial ? 'SAVING PHOTO...' : 'SAVE EDITORIAL PHOTO'}
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setEditorialImage('https://images.unsplash.com/photo-1512436991641-6745cdb1723f?q=80&w=800&auto=format&fit=crop');
+                  setEditorialFeedback({ message: 'Reset to default photo. Click "Save Editorial Photo" to apply.', type: 'success' });
+                }}
+                disabled={isSavingEditorial || isUploading}
+                style={{
+                  background: 'transparent',
+                  border: '1px solid var(--color-border)',
+                  color: 'var(--color-muted)',
+                  fontSize: '0.8rem',
+                  letterSpacing: '0.1em',
+                  textTransform: 'uppercase',
+                  padding: '1rem 1.25rem',
+                  cursor: 'pointer'
+                }}
+              >
+                Reset Default
+              </button>
+            </div>
+
+            <div style={{ marginTop: '2rem' }}>
+              <a
+                href="/#about"
+                target="_blank"
+                rel="noreferrer"
+                style={{
+                  color: 'var(--color-bronze)',
+                  fontSize: '0.85rem',
+                  textDecoration: 'underline',
+                  textUnderlineOffset: '4px',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '0.4rem'
+                }}
+              >
+                View Live Editor-in-Chief Section on Website ↗
+              </a>
+            </div>
+          </div>
+
+          {/* Right Column: Live Frame Preview */}
+          <div>
+            <h2 className="subtitle-tag" style={{ marginBottom: '2rem' }}>
+              Live Homepage Preview
+            </h2>
+            <div style={{
+              backgroundColor: 'var(--color-black-card)',
+              border: '1px solid var(--color-border)',
+              borderRadius: '8px',
+              padding: '2.5rem 1.5rem',
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+              justifyContent: 'center',
+              position: 'relative'
+            }}>
+              <div style={{
+                position: 'relative',
+                width: '100%',
+                maxWidth: '320px',
+                aspectRatio: '3/4',
+                marginBottom: '1.5rem'
+              }}>
+                <div
+                  style={{
+                    width: '100%',
+                    height: '100%',
+                    backgroundImage: `url('${editorialImage || "https://images.unsplash.com/photo-1512436991641-6745cdb1723f?q=80&w=800&auto=format&fit=crop"}')`,
+                    backgroundSize: 'cover',
+                    backgroundPosition: 'center',
+                    filter: 'grayscale(100%) contrast(1.1)',
+                    border: '1px solid var(--color-border)',
+                    boxShadow: '0 20px 40px rgba(0,0,0,0.6)'
+                  }}
+                ></div>
+                <div
+                  style={{
+                    position: 'absolute',
+                    top: '-15px',
+                    right: '-15px',
+                    width: '100%',
+                    height: '100%',
+                    border: '1px solid var(--color-bronze)',
+                    zIndex: -1,
+                    pointerEvents: 'none'
+                  }}
+                ></div>
+              </div>
+
+              <div style={{ textAlign: 'center', marginTop: '1rem' }}>
+                <span style={{ display: 'block', fontSize: '0.75rem', letterSpacing: '0.15em', textTransform: 'uppercase', color: 'var(--color-bronze)', fontWeight: 600 }}>
+                  Editor-in-Chief
+                </span>
+                <span style={{ display: 'block', fontFamily: 'var(--font-serif)', fontSize: '1.25rem', color: 'var(--color-white)', marginTop: '0.25rem' }}>
+                  Kennanyere Njoku
+                </span>
+                <span style={{ display: 'block', fontSize: '0.75rem', color: 'var(--color-muted)', marginTop: '0.5rem', maxWidth: '300px' }}>
+                  (Rendered with SLEEK signature monochrome editorial finish)
+                </span>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => document.getElementById('upload-editorial-input').click()}
+                style={{
+                  marginTop: '1.5rem',
+                  background: 'none',
+                  border: '1px solid var(--color-border)',
+                  color: 'var(--color-bronze)',
+                  fontSize: '0.75rem',
+                  letterSpacing: '0.1em',
+                  textTransform: 'uppercase',
+                  padding: '0.6rem 1.25rem',
+                  cursor: 'pointer',
+                  borderRadius: '4px'
+                }}
+              >
+                Change Photo
+              </button>
+            </div>
+          </div>
+        </div>
       ) : (
         <div className="admin-grid">
           {/* Left Column: Cover Fields */}
@@ -3476,6 +3759,66 @@ export default function Admin() {
                   </div>
                 </div>
               )}
+
+              {/* Editorial Photo Quick Link inside Cover Settings */}
+              <div style={{ marginTop: '2.5rem', paddingTop: '1.5rem', borderTop: '1px solid var(--color-border)' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem' }}>
+                  <label style={{ fontSize: '0.8rem', color: 'var(--color-bronze)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.08em', margin: 0 }}>
+                    Editor-in-Chief Editorial Photo (3:4)
+                  </label>
+                  <button
+                    type="button"
+                    onClick={() => { setActiveTab('editorial'); }}
+                    style={{
+                      background: 'none',
+                      border: 'none',
+                      color: 'var(--color-bronze)',
+                      fontSize: '0.75rem',
+                      cursor: 'pointer',
+                      textDecoration: 'underline',
+                      padding: 0
+                    }}
+                  >
+                    Manage in Editorial Photo Tab →
+                  </button>
+                </div>
+                <div style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '1.25rem',
+                  padding: '1rem',
+                  backgroundColor: 'rgba(255, 255, 255, 0.02)',
+                  border: '1px solid var(--color-border)',
+                  borderRadius: '6px'
+                }}>
+                  <div style={{
+                    width: '60px',
+                    aspectRatio: '3/4',
+                    backgroundImage: `url('${editorialImage || "https://images.unsplash.com/photo-1512436991641-6745cdb1723f?q=80&w=800&auto=format&fit=crop"}')`,
+                    backgroundSize: 'cover',
+                    backgroundPosition: 'center',
+                    filter: 'grayscale(100%)',
+                    border: '1px solid var(--color-bronze)',
+                    flexShrink: 0
+                  }}></div>
+                  <div style={{ flex: 1 }}>
+                    <div style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--color-white)' }}>
+                      Kennanyere Njoku
+                    </div>
+                    <div style={{ fontSize: '0.75rem', color: 'var(--color-muted)', marginTop: '2px' }}>
+                      Manifesto Section portrait on Homepage
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => { setActiveTab('editorial'); }}
+                    className="publish-btn"
+                    style={{ padding: '0.5rem 0.9rem', fontSize: '0.75rem', whiteSpace: 'nowrap' }}
+                  >
+                    Change
+                  </button>
+                </div>
+              </div>
             </div>
           </div>
         </div>
@@ -3529,7 +3872,7 @@ export default function Admin() {
               style={{
                 width: '100%',
                 maxWidth: '400px',
-                aspectRatio: activeTab === 'cover' ? '16/10' : '4/3',
+                aspectRatio: activeTab === 'cover' ? '16/10' : activeTab === 'editorial' ? '3/4' : '4/3',
                 position: 'relative',
                 overflow: 'hidden',
                 border: '1px solid var(--color-bronze)',
@@ -3539,7 +3882,7 @@ export default function Admin() {
               }}
             >
               {(() => {
-                const targetAspect = activeTab === 'cover' ? 16 / 10 : 4 / 3;
+                const targetAspect = activeTab === 'cover' ? 16 / 10 : activeTab === 'editorial' ? 3 / 4 : 4 / 3;
                 const aspect = imageAspect || targetAspect;
                 const isWider = aspect >= targetAspect;
                 return (
