@@ -191,6 +191,17 @@ export default function Navbar() {
               Subscribe
             </Link>
           </li>
+          {!isSubscriber && (
+            <li className="mobile-sign-in-item" style={{ display: 'none' }}>
+              <Link 
+                href="/subscriber/login" 
+                className="nav-link-item"
+                onClick={() => setIsMenuOpen(false)}
+              >
+                Sign In
+              </Link>
+            </li>
+          )}
         </ul>
 
         {/* Dynamic CTA / Subscriber Badge */}
@@ -207,9 +218,18 @@ export default function Navbar() {
               </button>
             </div>
           ) : (
-            <Link href="/#subscribe" className="nav-cta btn-hover-effect">
-              SUBSCRIBE
-            </Link>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '1.5rem' }}>
+              <Link 
+                href="/subscriber/login" 
+                className="nav-link-item"
+                style={{ fontSize: '0.75rem', padding: 0 }}
+              >
+                Sign In
+              </Link>
+              <Link href="/#subscribe" className="nav-cta btn-hover-effect">
+                SUBSCRIBE
+              </Link>
+            </div>
           )
         ) : null}
 

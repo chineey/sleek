@@ -40,6 +40,7 @@ model CoverSettings {
 model Subscriber {
   id                 String   @id @default(uuid())
   email              String   @unique
+  password           String?
   status             String   @default("inactive") // "active" | "inactive"
   paystackCustomerId String?
   paystackReference  String?

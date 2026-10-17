@@ -658,15 +658,25 @@ export default function HomeClient({ initialCover, initialIsSubscriber, initialA
                   )}
                 </form>
 
-                {/* Magic Link Section */}
+                {/* Sign In & Magic Link Section */}
                 <div className="magic-link-section">
-                  <button
-                    type="button"
-                    className="magic-link-toggle-btn"
-                    onClick={() => setShowMagicLinkForm(!showMagicLinkForm)}
-                  >
-                    {showMagicLinkForm ? 'Hide sign in form' : 'Already subscribed? Sign in on a new device'}
-                  </button>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem', alignItems: 'center' }}>
+                    <Link
+                      href="/subscriber/login"
+                      className="magic-link-toggle-btn"
+                      style={{ textDecoration: 'none', display: 'inline-block' }}
+                    >
+                      Already subscribed? Sign in with password &rarr;
+                    </Link>
+                    <button
+                      type="button"
+                      className="magic-link-toggle-btn"
+                      onClick={() => setShowMagicLinkForm(!showMagicLinkForm)}
+                      style={{ fontSize: '0.75rem', opacity: 0.8 }}
+                    >
+                      {showMagicLinkForm ? 'Hide magic link' : 'Or sign in with Magic Link'}
+                    </button>
+                  </div>
 
                   {showMagicLinkForm && (
                     <div className="magic-link-box">

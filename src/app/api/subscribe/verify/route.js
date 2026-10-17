@@ -79,8 +79,13 @@ export async function GET(req) {
     // Create session token
     const token = createSubscriberToken(email);
 
-    // Redirect to homepage with cookie and success query param
-    const response = NextResponse.redirect(`${nextAuthUrl}?subscribed=true`);
+    // If subscriber hasn't set a password yet, redirect to setup onboarding
+    const hasPassword = Boolean(existingSubscriber?.password);
+    const redirectUrl = hasPassword
+      ? `${nextAuthUrl}?subscribed=true`
+      : `${nextAuthUrl}/subscriber/setup?welcome=true`;
+
+    const response = NextResponse.redirect(redirectUrl);
     
     // Cookie expires in 60 days (bi-monthly)
     response.cookies.set('subscriber_token', token, {

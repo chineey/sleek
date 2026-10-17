@@ -40,8 +40,13 @@ export async function GET(req) {
     // Create session token
     const subscriberToken = createSubscriberToken(magicLink.email);
 
-    // Redirect to homepage with cookie and login success param
-    const response = NextResponse.redirect(`${nextAuthUrl}?login=success`);
+    // If subscriber hasn't set a password yet, guide them to setup
+    const hasPassword = Boolean(subscriber.password);
+    const redirectUrl = hasPassword
+      ? `${nextAuthUrl}?login=success`
+      : `${nextAuthUrl}/subscriber/setup?from_magic_link=true`;
+
+    const response = NextResponse.redirect(redirectUrl);
     
     // Cookie expires in 30 days
     response.cookies.set('subscriber_token', subscriberToken, {
