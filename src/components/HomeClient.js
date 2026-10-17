@@ -698,7 +698,7 @@ export default function HomeClient({ initialCover, initialIsSubscriber, initialA
               <>
                 <h2>Receive the Print &amp; Digital Editions</h2>
                 <p>
-                  Subscribe for ₦2,500 bi-monthly (₦2,500 every two months) to receive full access to our digital premium archives, complete issues, and exclusive events.{' '}
+                  Subscribe for ₦1,500 monthly (₦1,500 every month) to receive full access to our digital premium archives, complete issues, and exclusive events.{' '}
                   <Link
                     href="/shop"
                     style={{
@@ -726,7 +726,7 @@ export default function HomeClient({ initialCover, initialIsSubscriber, initialA
                   fontWeight: 600,
                   letterSpacing: '0.04em',
                 }}>
-                  <span>✓</span> Bi-monthly plan: ₦2,500 every 2 months (full recurring access)
+                  <span>✓</span> Monthly plan: ₦1,500 / month (full recurring access)
                 </div>
 
                 <form className="subscribe-form" onSubmit={handleSubscribe}>
@@ -917,7 +917,7 @@ export default function HomeClient({ initialCover, initialIsSubscriber, initialA
                           <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
                         </svg>
                         <h3>Subscribe to Read Full Story</h3>
-                        <p>This story requires an active digital subscription. Subscribe for ₦2,500 every two months (bi-monthly) to unlock full issues, articles, and our complete archives.</p>
+                        <p>This story requires an active digital subscription. Subscribe for ₦1,500 monthly to unlock full issues, articles, and our complete archives.</p>
                         <button
                           className="paywall-btn"
                           onClick={() => {
@@ -928,7 +928,7 @@ export default function HomeClient({ initialCover, initialIsSubscriber, initialA
                             }
                           }}
                         >
-                          Unlock Now — ₦2,500 every 2 months
+                          Unlock Now — ₦1,500 / month
                         </button>
                       </div>
                     </div>

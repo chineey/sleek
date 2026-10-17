@@ -45,10 +45,11 @@ export async function POST(req) {
       const customerId = String(payload.data?.customer?.id || '');
       if (customerEmail) {
         console.log(`[WEBHOOK] Subscription created: ${customerEmail}`);
+        const expiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
         await prisma.subscriber.upsert({
           where: { email: customerEmail },
-          update: { status: 'active', paystackCustomerId: customerId },
-          create: { email: customerEmail, status: 'active', paystackCustomerId: customerId },
+          update: { status: 'active', paystackCustomerId: customerId, expiresAt },
+          create: { email: customerEmail, status: 'active', paystackCustomerId: customerId, expiresAt },
         });
       }
       return NextResponse.json({ status: 'ok', message: 'Subscription activated' });
@@ -74,6 +75,24 @@ export async function POST(req) {
       return NextResponse.json({ status: 'ok', message: `Processed ${payload.event}` });
     }
 
+    // Handle recurring invoice payment for monthly plan renewal
+    if (payload.event === 'invoice.update' && payload.data?.paid === true) {
+      const customerEmail = 
+        payload.data?.customer?.email || 
+        payload.data?.subscription?.customer?.email || 
+        payload.data?.email;
+
+      if (customerEmail) {
+        console.log(`[WEBHOOK] Recurring subscription invoice paid for: ${customerEmail}`);
+        const expiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
+        await prisma.subscriber.updateMany({
+          where: { email: customerEmail },
+          data: { status: 'active', expiresAt },
+        });
+      }
+      return NextResponse.json({ status: 'ok', message: 'Recurring invoice renewal processed' });
+    }
+
     // Verify event is successful charge
     if (payload.event === 'charge.success' && payload.data?.status === 'success') {
       const metadata = payload.data?.metadata || {};
@@ -93,7 +112,7 @@ export async function POST(req) {
 
         const existingSubscriber = await prisma.subscriber.findUnique({ where: { email: customerEmail } });
         const wasAlreadyActive = existingSubscriber?.status === 'active';
-        const expiresAt = new Date(Date.now() + 60 * 24 * 60 * 60 * 1000);
+        const expiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
 
         await prisma.subscriber.upsert({
           where: { email: customerEmail },

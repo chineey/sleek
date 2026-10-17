@@ -4,7 +4,7 @@ add events as a header and build out(this is to upload upcoming events with info
 
 use the same aspect ratio for articles in the shop products
 
-make sub bi-monthly and make the price 2500
+make sub monthly and make the price 1500
 
 unsubscribed Users can see all articles, but cant click  read all(remove blur) except Sleakpeak(the articles stays blurred for nonsubscribers)
 Create LinkedIn for sleek and internship

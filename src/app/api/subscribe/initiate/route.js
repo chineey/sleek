@@ -29,8 +29,8 @@ export async function POST(req) {
     }
 
     // 2. Paystack transaction configuration
-    // Amount in kobo: ₦2,500 is 2500 * 100 = 250000 kobo (Bi-monthly 2 months access)
-    const amount = 250000; 
+    // Amount in kobo: ₦1,500 is 1500 * 100 = 150000 kobo (Monthly recurring access)
+    const amount = 150000; 
     const nextAuthUrl = process.env.NEXTAUTH_URL || 'http://localhost:3000';
     const callbackUrl = `${nextAuthUrl}/api/subscribe/verify`;
 
@@ -63,6 +63,8 @@ export async function POST(req) {
       ...(planCode ? { plan: planCode } : {}),
       metadata: {
         payment_type: 'subscription',
+        billing_cycle: 'monthly',
+        amount_naira: 1500,
         ...(planCode ? { plan_code: planCode } : {})
       }
     });

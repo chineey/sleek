@@ -103,13 +103,13 @@ export async function POST(req) {
       redirect: '/'
     });
 
-    // Set 60 days cookie
+    // Set 30 days cookie (monthly)
     response.cookies.set('subscriber_token', token, {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
       sameSite: 'lax',
       path: '/',
-      maxAge: 60 * 24 * 60 * 60, // 60 days
+      maxAge: 30 * 24 * 60 * 60, // 30 days
     });
 
     return response;

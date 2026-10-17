@@ -53,8 +53,8 @@ export async function GET(req) {
       customerId = String(verificationData.customer.id || '');
     }
 
-    // Mark subscriber active with 60 days (bi-monthly) validity
-    const expiresAt = new Date(Date.now() + 60 * 24 * 60 * 60 * 1000);
+    // Mark subscriber active with 30 days (monthly) validity
+    const expiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
     const existingSubscriber = await prisma.subscriber.findUnique({ where: { email } });
     const wasAlreadyActive = existingSubscriber?.status === 'active';
 
@@ -87,13 +87,13 @@ export async function GET(req) {
 
     const response = NextResponse.redirect(redirectUrl);
     
-    // Cookie expires in 60 days (bi-monthly)
+    // Cookie expires in 30 days (monthly)
     response.cookies.set('subscriber_token', token, {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
       sameSite: 'lax',
       path: '/',
-      maxAge: 60 * 24 * 60 * 60,
+      maxAge: 30 * 24 * 60 * 60,
     });
 
     return response;
