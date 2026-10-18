@@ -231,10 +231,14 @@ export default function HomeClient({ initialCover, initialIsSubscriber, initialA
     }
   }, [articles]);
 
-  // Share Article Handler
+  // Share Article or Comic Handler
   const handleShareArticle = async (article) => {
     if (!article || typeof window === 'undefined') return;
-    const shareUrl = `${window.location.origin}/article/${article.id}`;
+    const catNorm = normalizeCategory(article.category);
+    const isComics = catNorm === 'comics' || catNorm === 'comic';
+    const shareUrl = isComics
+      ? `${window.location.origin}/comics?id=${article.id}`
+      : `${window.location.origin}/article/${article.id}`;
     const cleanExcerpt = getExcerpt(article.content);
 
     const shareData = {
@@ -266,7 +270,47 @@ export default function HomeClient({ initialCover, initialIsSubscriber, initialA
         document.execCommand('copy');
         document.body.removeChild(input);
       }
-      showToast('Article link copied to clipboard!', 'success');
+      showToast(isComics ? 'Comic link copied to clipboard!' : 'Article link copied to clipboard!', 'success');
+    } catch {
+      showToast('Could not copy link.', 'error');
+    }
+  };
+
+  // Share Event Handler
+  const handleShareEvent = async (event) => {
+    if (!event || typeof window === 'undefined') return;
+    const shareUrl = `${window.location.origin}/events?id=${event.id}`;
+    const cleanDesc = getExcerpt(event.description);
+
+    const shareData = {
+      title: `${event.title} | SLEEK Events`,
+      text: cleanDesc,
+      url: shareUrl,
+    };
+
+    if (navigator.share && navigator.canShare && navigator.canShare(shareData)) {
+      try {
+        await navigator.share(shareData);
+        return;
+      } catch (err) {
+        if (err.name !== 'AbortError') {
+          console.error('Share error:', err);
+        }
+      }
+    }
+
+    try {
+      if (navigator.clipboard?.writeText) {
+        await navigator.clipboard.writeText(shareUrl);
+      } else {
+        const input = document.createElement('input');
+        input.value = shareUrl;
+        document.body.appendChild(input);
+        input.select();
+        document.execCommand('copy');
+        document.body.removeChild(input);
+      }
+      showToast('Event link copied to clipboard!', 'success');
     } catch {
       showToast('Could not copy link.', 'error');
     }
@@ -486,7 +530,7 @@ export default function HomeClient({ initialCover, initialIsSubscriber, initialA
                   <article
                     key={event.id}
                     className="article-card"
-                    onClick={() => router.push('/events')}
+                    onClick={() => router.push(`/events?id=${event.id}`)}
                     style={{ cursor: 'pointer' }}
                   >
                     <div className="card-img-wrapper">
@@ -507,20 +551,40 @@ export default function HomeClient({ initialCover, initialIsSubscriber, initialA
                       </span>
                       <h3 className="card-title">{event.title}</h3>
                       <p className="card-excerpt">{getExcerpt(event.description)}</p>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 'auto', paddingTop: '0.75rem' }}>
-                        <Link
-                          href="/events"
-                          className="card-read-more"
-                          onClick={(e) => e.stopPropagation()}
-                          style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem' }}
+                      <div className="card-footer-row" style={{ marginTop: 'auto', paddingTop: '0.75rem' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                          <Link
+                            href={`/events?id=${event.id}`}
+                            className="card-read-more"
+                            onClick={(e) => e.stopPropagation()}
+                            style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem' }}
+                          >
+                            More Info &rarr;
+                          </Link>
+                          {event.averageRating && (
+                            <span style={{ fontSize: '0.75rem', color: 'var(--color-bronze)' }}>
+                              ★ {event.averageRating} ({event.ratingsCount})
+                            </span>
+                          )}
+                        </div>
+                        <button
+                          type="button"
+                          className="card-share-btn"
+                          title="Share event"
+                          aria-label="Share event"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleShareEvent(event);
+                          }}
                         >
-                          More Info &rarr;
-                        </Link>
-                        {event.averageRating && (
-                          <span style={{ fontSize: '0.75rem', color: 'var(--color-bronze)' }}>
-                            ★ {event.averageRating} ({event.ratingsCount})
-                          </span>
-                        )}
+                          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75">
+                            <circle cx="18" cy="5" r="3"></circle>
+                            <circle cx="6" cy="12" r="3"></circle>
+                            <circle cx="18" cy="19" r="3"></circle>
+                            <line x1="8.59" y1="13.51" x2="15.42" y2="17.49"></line>
+                            <line x1="15.41" y1="6.51" x2="8.59" y2="10.49"></line>
+                          </svg>
+                        </button>
                       </div>
                     </div>
                   </article>
@@ -538,26 +602,17 @@ export default function HomeClient({ initialCover, initialIsSubscriber, initialA
                 const isFeatured = false;
                 const catNorm = normalizeCategory(article.category);
                 const isSleekPeak = catNorm === 'sleekpeak';
-                const isComics = catNorm === 'comics';
+                const isComics = catNorm === 'comics' || catNorm === 'comic';
                 const isBusinessNews = catNorm === 'businessnews' || catNorm === 'business' || catNorm.includes('business');
-                // Only comics are blurred for non-subscribers (sleekpeak is full access)
-                const isCardBlurred = !isSubscriber && isComics;
+                // Comics category is unblurred for non-subscribers
+                const isCardBlurred = false;
 
                 return (
                   <article
                     key={article.id}
-                    className={`article-card ${isFeatured ? 'featured' : ''} ${isCardBlurred ? 'sleekpeak-locked' : ''} ${!isSubscriber ? 'paywalled' : ''}`}
+                    className={`article-card ${isFeatured ? 'featured' : ''}`}
                     onClick={() => {
-                      if (isCardBlurred) {
-                        const subSection = document.getElementById('subscribe');
-                        if (subSection) {
-                          subSection.scrollIntoView({ behavior: 'smooth' });
-                        }
-                        showToast(
-                          'Sleek Comics are exclusive to subscribers. Subscribe to unlock.',
-                          'info'
-                        );
-                      } else if (isComics) {
+                      if (isComics) {
                         router.push(`/comics?id=${article.id}`);
                       } else {
                         openReader(article);
@@ -576,30 +631,6 @@ export default function HomeClient({ initialCover, initialIsSubscriber, initialA
                         />
                       )}
                       <span className="card-category">{article.category}</span>
-
-                      {/* Lock overlay for Comics */}
-                      {isCardBlurred && (
-                        <div className="paywall-overlay" style={{ backdropFilter: 'blur(8px)', backgroundColor: 'rgba(12, 12, 12, 0.85)' }}>
-                          <svg className="paywall-lock-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
-                            <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
-                            <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
-                          </svg>
-                          <h4 className="paywall-title">Comics Exclusive</h4>
-                          <p className="paywall-desc">
-                            Subscribe to unlock access to Sleek Comics and full graphic chapters.
-                          </p>
-                          <button
-                            className="paywall-btn"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              const subSection = document.getElementById('subscribe');
-                              if (subSection) subSection.scrollIntoView({ behavior: 'smooth' });
-                            }}
-                          >
-                            Subscribe
-                          </button>
-                        </div>
-                      )}
                     </div>
                     <div className="card-info">
                       <span className="card-date">{article.date}</span>
@@ -607,34 +638,30 @@ export default function HomeClient({ initialCover, initialIsSubscriber, initialA
                       <p className="card-excerpt">{getExcerpt(article.content)}</p>
                       <div className="card-footer-row">
                         <span className="card-read-more">
-                          {isCardBlurred
-                            ? '🔒 Subscribe to Unlock'
-                            : isComics
+                          {isComics
                             ? 'Read Comic Chapter →'
                             : isBusinessNews
                             ? 'More Info'
                             : 'Read Story'}
                         </span>
-                        {!isCardBlurred && !isComics && (
-                          <button
-                            type="button"
-                            className="card-share-btn"
-                            title="Share story"
-                            aria-label="Share story"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleShareArticle(article);
-                            }}
-                          >
-                            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75">
-                              <circle cx="18" cy="5" r="3"></circle>
-                              <circle cx="6" cy="12" r="3"></circle>
-                              <circle cx="18" cy="19" r="3"></circle>
-                              <line x1="8.59" y1="13.51" x2="15.42" y2="17.49"></line>
-                              <line x1="15.41" y1="6.51" x2="8.59" y2="10.49"></line>
-                            </svg>
-                          </button>
-                        )}
+                        <button
+                          type="button"
+                          className="card-share-btn"
+                          title={isComics ? 'Share comic' : 'Share story'}
+                          aria-label={isComics ? 'Share comic' : 'Share story'}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleShareArticle(article);
+                          }}
+                        >
+                          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75">
+                            <circle cx="18" cy="5" r="3"></circle>
+                            <circle cx="6" cy="12" r="3"></circle>
+                            <circle cx="18" cy="19" r="3"></circle>
+                            <line x1="8.59" y1="13.51" x2="15.42" y2="17.49"></line>
+                            <line x1="15.41" y1="6.51" x2="8.59" y2="10.49"></line>
+                          </svg>
+                        </button>
                       </div>
                     </div>
                   </article>

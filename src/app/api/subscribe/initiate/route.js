@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import prisma from '../../../../lib/prisma';
 import { initializeTransaction } from '../../../../lib/paystack';
+import { getBaseUrl } from '../../../../lib/url';
 
 export async function POST(req) {
   try {
@@ -31,7 +32,7 @@ export async function POST(req) {
     // 2. Paystack transaction configuration
     // Amount in kobo: ₦1,500 is 1500 * 100 = 150000 kobo (Monthly recurring access)
     const amount = 150000; 
-    const nextAuthUrl = process.env.NEXTAUTH_URL || 'http://localhost:3000';
+    const nextAuthUrl = getBaseUrl(req);
     const callbackUrl = `${nextAuthUrl}/api/subscribe/verify`;
 
     // 3. Initialize Paystack transaction (or mock if keys not present)

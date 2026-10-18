@@ -1,5 +1,6 @@
 import fs from 'fs';
 import path from 'path';
+import { getBaseUrl } from './url';
 
 function getEnvVar(...names) {
   for (const name of names) {
@@ -54,7 +55,7 @@ function getBrevoCredentialIssue({ smtpUser, smtpPass, brevoApiKey }) {
 }
 
 export async function sendMagicLinkEmail(email, token) {
-  const nextAuthUrl = process.env.NEXTAUTH_URL || 'http://localhost:3000';
+  const nextAuthUrl = getBaseUrl();
   const magicLink = `${nextAuthUrl}/api/magic-link/verify?token=${token}`;
 
   const logMessage = `
@@ -162,7 +163,7 @@ Generated at: ${new Date().toISOString()}
 }
 
 export async function sendSubscriptionConfirmationEmail(email) {
-  const nextAuthUrl = process.env.NEXTAUTH_URL || 'http://localhost:3000';
+  const nextAuthUrl = getBaseUrl();
 
   const logMessage = `
 ========================================
@@ -273,7 +274,7 @@ export async function sendNewArticleNotificationEmail(article, recipientEmails =
     return true;
   }
 
-  const nextAuthUrl = process.env.NEXTAUTH_URL || 'http://localhost:3000';
+  const nextAuthUrl = getBaseUrl();
   const articleUrl = `${nextAuthUrl}/#editorial`;
   const articleTitle = article?.title || 'New SLEEK story';
   const articleCategory = article?.category || 'Latest';

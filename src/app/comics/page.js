@@ -64,12 +64,63 @@ function ComicsContent() {
     }
   }, [targetId, comics]);
 
+  // Toast Feedback State
+  const [toast, setToast] = useState({ message: '', type: '' });
+
+  const showToast = (message, type = 'success') => {
+    setToast({ message, type });
+    setTimeout(() => {
+      setToast({ message: '', type: '' });
+    }, 4000);
+  };
+
+  // Share Comic Handler
+  const handleShareComic = async (comic) => {
+    if (!comic || typeof window === 'undefined') return;
+    const shareUrl = `${window.location.origin}/comics?id=${comic.id}`;
+    const shareData = {
+      title: `${comic.title} | SLEEK Comics`,
+      text: comic.synopsis || `Read ${comic.title} on SLEEK Magazine`,
+      url: shareUrl,
+    };
+
+    if (navigator.share && navigator.canShare && navigator.canShare(shareData)) {
+      try {
+        await navigator.share(shareData);
+        return;
+      } catch (err) {
+        if (err.name !== 'AbortError') {
+          console.error('Share error:', err);
+        }
+      }
+    }
+
+    try {
+      if (navigator.clipboard?.writeText) {
+        await navigator.clipboard.writeText(shareUrl);
+      } else {
+        const input = document.createElement('input');
+        input.value = shareUrl;
+        document.body.appendChild(input);
+        input.select();
+        document.execCommand('copy');
+        document.body.removeChild(input);
+      }
+      showToast('Comic link copied to clipboard!', 'success');
+    } catch {
+      showToast('Could not copy link.', 'error');
+    }
+  };
+
   // Open reader
   const openReader = (comic, initialPage = 0) => {
     setActiveComic(comic);
     setCurrentPage(initialPage);
     setIsPaywallBlocked(!isSubscriber && initialPage > 0);
     document.body.style.overflow = 'hidden';
+    if (typeof window !== 'undefined') {
+      window.history.replaceState({}, document.title, `/comics?id=${comic.id}`);
+    }
   };
 
   // Close reader
@@ -79,7 +130,9 @@ function ComicsContent() {
     setIsPaywallBlocked(false);
     document.body.style.overflow = '';
     // Remove query parameter without reload
-    window.history.replaceState({}, document.title, '/comics');
+    if (typeof window !== 'undefined') {
+      window.history.replaceState({}, document.title, '/comics');
+    }
   };
 
   // Next page handler
@@ -393,14 +446,54 @@ function ComicsContent() {
                     >
                       Read Chapter &rarr;
                     </span>
-                    <span
-                      style={{
-                        fontSize: '0.75rem',
-                        color: 'var(--color-muted)',
-                      }}
-                    >
-                      {isSubscriber ? 'Full Access' : 'Preview & Unlock'}
-                    </span>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                      <span
+                        style={{
+                          fontSize: '0.75rem',
+                          color: 'var(--color-muted)',
+                        }}
+                      >
+                        {isSubscriber ? 'Full Access' : 'Preview & Unlock'}
+                      </span>
+                      <button
+                        type="button"
+                        title="Share chapter"
+                        aria-label="Share chapter"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleShareComic(comic);
+                        }}
+                        style={{
+                          background: 'transparent',
+                          border: '1px solid var(--color-border)',
+                          borderRadius: '4px',
+                          color: 'var(--color-muted)',
+                          width: '32px',
+                          height: '32px',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          cursor: 'pointer',
+                          transition: 'var(--transition-fast)',
+                        }}
+                        onMouseEnter={(e) => {
+                          e.currentTarget.style.color = 'var(--color-bronze)';
+                          e.currentTarget.style.borderColor = 'var(--color-bronze)';
+                        }}
+                        onMouseLeave={(e) => {
+                          e.currentTarget.style.color = 'var(--color-muted)';
+                          e.currentTarget.style.borderColor = 'var(--color-border)';
+                        }}
+                      >
+                        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75">
+                          <circle cx="18" cy="5" r="3"></circle>
+                          <circle cx="6" cy="12" r="3"></circle>
+                          <circle cx="18" cy="19" r="3"></circle>
+                          <line x1="8.59" y1="13.51" x2="15.42" y2="17.49"></line>
+                          <line x1="15.41" y1="6.51" x2="8.59" y2="10.49"></line>
+                        </svg>
+                      </button>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -480,6 +573,41 @@ function ComicsContent() {
                 Page <span style={{ color: 'var(--color-white)', fontWeight: 600 }}>{currentPage + 1}</span> of{' '}
                 <span>{activeComic.pages.length}</span>
               </div>
+
+              <button
+                type="button"
+                onClick={() => handleShareComic(activeComic)}
+                aria-label="Share Comic"
+                title="Share Comic"
+                style={{
+                  background: 'transparent',
+                  border: '1px solid var(--color-border)',
+                  color: 'var(--color-white)',
+                  width: '36px',
+                  height: '36px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  cursor: 'pointer',
+                  transition: 'var(--transition-fast)',
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.borderColor = 'var(--color-bronze)';
+                  e.currentTarget.style.color = 'var(--color-bronze)';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.borderColor = 'var(--color-border)';
+                  e.currentTarget.style.color = 'var(--color-white)';
+                }}
+              >
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75">
+                  <circle cx="18" cy="5" r="3"></circle>
+                  <circle cx="6" cy="12" r="3"></circle>
+                  <circle cx="18" cy="19" r="3"></circle>
+                  <line x1="8.59" y1="13.51" x2="15.42" y2="17.49"></line>
+                  <line x1="15.41" y1="6.51" x2="8.59" y2="10.49"></line>
+                </svg>
+              </button>
 
               <button
                 type="button"
@@ -855,6 +983,33 @@ function ComicsContent() {
               Next Page &rarr;
             </button>
           </div>
+        </div>
+      )}
+
+      {/* Toast Notification */}
+      {toast.message && (
+        <div
+          style={{
+            position: 'fixed',
+            bottom: '2rem',
+            right: '2rem',
+            backgroundColor: 'var(--color-black-card)',
+            border: `1px solid ${toast.type === 'error' ? '#ef4444' : 'var(--color-bronze)'}`,
+            color: 'var(--color-white)',
+            padding: '0.85rem 1.25rem',
+            borderRadius: '6px',
+            fontSize: '0.85rem',
+            zIndex: 100000,
+            boxShadow: '0 8px 30px rgba(0,0,0,0.7)',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '0.5rem',
+          }}
+        >
+          <span style={{ color: toast.type === 'error' ? '#ef4444' : 'var(--color-bronze)' }}>
+            {toast.type === 'error' ? '✕' : '✓'}
+          </span>
+          <span>{toast.message}</span>
         </div>
       )}
     </main>

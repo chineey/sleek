@@ -34,15 +34,14 @@ export async function GET(req) {
       },
     });
 
-    // Allow non-subscribers full access to articles in category: fashion, culture, business news, sports, events, sleekpeak
-    // Comics category is blurred (gated for non-subscribers).
+    // Allow non-subscribers full access to articles in category: fashion, culture, business news, sports, events, sleekpeak, comics
     // Editorial shows preview to non-subscribers.
-    const FREE_CATEGORIES = ['fashion', 'culture', 'businessnews', 'sports', 'events', 'event', 'sleekpeak'];
+    const FREE_CATEGORIES = ['fashion', 'culture', 'businessnews', 'sports', 'events', 'event', 'sleekpeak', 'comics', 'comic'];
 
     const sanitizedArticles = articles.map((art) => {
       const normCat = art.category?.toLowerCase().replace(/\s+/g, '') || '';
       const isSleekPeak = normCat === 'sleekpeak';
-      const isComics = normCat === 'comics';
+      const isComics = normCat === 'comics' || normCat === 'comic';
       const isFree = FREE_CATEGORIES.includes(normCat);
 
       if (!isSubscriber) {
@@ -52,15 +51,6 @@ export async function GET(req) {
             ...art,
             content: art.content,
             isPaywalled: false,
-            isSleekPeak,
-            isComics,
-          };
-        } else if (isComics) {
-          // Comics are blurred and gated for non-subscribers
-          return {
-            ...art,
-            content: '',
-            isPaywalled: true,
             isSleekPeak,
             isComics,
           };

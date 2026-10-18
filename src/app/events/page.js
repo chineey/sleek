@@ -18,6 +18,65 @@ export default function EventsPage() {
   const [ticketQuantity, setTicketQuantity] = useState(1);
   const [isCheckingOut, setIsCheckingOut] = useState(false);
   const [checkoutFeedback, setCheckoutFeedback] = useState({ message: '', type: '' });
+  const [toast, setToast] = useState({ message: '', type: '' });
+
+  const showToast = (message, type = 'success') => {
+    setToast({ message, type });
+    setTimeout(() => {
+      setToast({ message: '', type: '' });
+    }, 4000);
+  };
+
+  const openEventModal = (event) => {
+    setSelectedEvent(event);
+    if (typeof window !== 'undefined') {
+      window.history.replaceState({}, document.title, `/events?id=${event.id}`);
+    }
+  };
+
+  const closeEventModal = () => {
+    setSelectedEvent(null);
+    if (typeof window !== 'undefined') {
+      window.history.replaceState({}, document.title, '/events');
+    }
+  };
+
+  const handleShareEvent = async (event) => {
+    if (!event || typeof window === 'undefined') return;
+    const shareUrl = `${window.location.origin}/events?id=${event.id}`;
+    const shareData = {
+      title: `${event.title} | SLEEK Events`,
+      text: event.description || `Check out ${event.title} on SLEEK Events`,
+      url: shareUrl,
+    };
+
+    if (navigator.share && navigator.canShare && navigator.canShare(shareData)) {
+      try {
+        await navigator.share(shareData);
+        return;
+      } catch (err) {
+        if (err.name !== 'AbortError') {
+          console.error('Share error:', err);
+        }
+      }
+    }
+
+    try {
+      if (navigator.clipboard?.writeText) {
+        await navigator.clipboard.writeText(shareUrl);
+      } else {
+        const input = document.createElement('input');
+        input.value = shareUrl;
+        document.body.appendChild(input);
+        input.select();
+        document.execCommand('copy');
+        document.body.removeChild(input);
+      }
+      showToast('Event link copied to clipboard!', 'success');
+    } catch {
+      showToast('Could not copy link.', 'error');
+    }
+  };
 
   useEffect(() => {
     fetchEvents();
@@ -60,6 +119,20 @@ export default function EventsPage() {
     }
     fetchSubscriberStatus();
   }, []);
+
+  // Open event modal if ?id= parameter is present in URL
+  useEffect(() => {
+    if (typeof window !== 'undefined' && events.length > 0) {
+      const params = new URLSearchParams(window.location.search);
+      const targetId = params.get('id');
+      if (targetId) {
+        const found = events.find((e) => String(e.id) === String(targetId));
+        if (found) {
+          openEventModal(found);
+        }
+      }
+    }
+  }, [events]);
 
   const fetchEvents = async () => {
     setLoading(true);
@@ -622,7 +695,7 @@ export default function EventsPage() {
 
                         <button
                           type="button"
-                          onClick={() => setSelectedEvent(event)}
+                          onClick={() => openEventModal(event)}
                           style={{
                             flex: 1,
                             padding: '0.65rem 0.75rem',
@@ -639,6 +712,42 @@ export default function EventsPage() {
                           }}
                         >
                           More Info ({event.commentsCount || 0})
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={() => handleShareEvent(event)}
+                          title="Share event link"
+                          aria-label="Share event link"
+                          style={{
+                            padding: '0.65rem 0.85rem',
+                            fontSize: '0.75rem',
+                            backgroundColor: 'transparent',
+                            color: 'var(--color-white)',
+                            border: '1px solid var(--color-border)',
+                            borderRadius: '4px',
+                            cursor: 'pointer',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            transition: 'var(--transition-fast)',
+                          }}
+                          onMouseEnter={(e) => {
+                            e.currentTarget.style.borderColor = 'var(--color-bronze)';
+                            e.currentTarget.style.color = 'var(--color-bronze)';
+                          }}
+                          onMouseLeave={(e) => {
+                            e.currentTarget.style.borderColor = 'var(--color-border)';
+                            e.currentTarget.style.color = 'var(--color-white)';
+                          }}
+                        >
+                          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75">
+                            <circle cx="18" cy="5" r="3"></circle>
+                            <circle cx="6" cy="12" r="3"></circle>
+                            <circle cx="18" cy="19" r="3"></circle>
+                            <line x1="8.59" y1="13.51" x2="15.42" y2="17.49"></line>
+                            <line x1="15.41" y1="6.51" x2="8.59" y2="10.49"></line>
+                          </svg>
                         </button>
                       </div>
                     </div>
@@ -664,7 +773,7 @@ export default function EventsPage() {
             alignItems: 'center',
             padding: '1.5rem',
           }}
-          onClick={() => setSelectedEvent(null)}
+          onClick={closeEventModal}
         >
           <div
             style={{
@@ -680,25 +789,77 @@ export default function EventsPage() {
             }}
             onClick={(e) => e.stopPropagation()}
           >
-            {/* Close Button */}
-            <button
-              type="button"
-              onClick={() => setSelectedEvent(null)}
+            {/* Modal Controls: Share & Close */}
+            <div
               style={{
                 position: 'absolute',
                 top: '1.25rem',
                 right: '1.25rem',
-                background: 'none',
-                border: 'none',
-                color: 'var(--color-white)',
-                fontSize: '1.5rem',
-                cursor: 'pointer',
-                lineHeight: 1,
+                display: 'flex',
+                alignItems: 'center',
+                gap: '0.65rem',
+                zIndex: 10,
               }}
-              aria-label="Close modal"
             >
-              &times;
-            </button>
+              <button
+                type="button"
+                onClick={() => handleShareEvent(selectedEvent)}
+                title="Share event link"
+                aria-label="Share event link"
+                style={{
+                  background: 'rgba(0,0,0,0.6)',
+                  border: '1px solid var(--color-border)',
+                  color: 'var(--color-white)',
+                  width: '36px',
+                  height: '36px',
+                  borderRadius: '4px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  cursor: 'pointer',
+                  transition: 'var(--transition-fast)',
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.borderColor = 'var(--color-bronze)';
+                  e.currentTarget.style.color = 'var(--color-bronze)';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.borderColor = 'var(--color-border)';
+                  e.currentTarget.style.color = 'var(--color-white)';
+                }}
+              >
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75">
+                  <circle cx="18" cy="5" r="3"></circle>
+                  <circle cx="6" cy="12" r="3"></circle>
+                  <circle cx="18" cy="19" r="3"></circle>
+                  <line x1="8.59" y1="13.51" x2="15.42" y2="17.49"></line>
+                  <line x1="15.41" y1="6.51" x2="8.59" y2="10.49"></line>
+                </svg>
+              </button>
+
+              <button
+                type="button"
+                onClick={closeEventModal}
+                style={{
+                  background: 'rgba(0,0,0,0.6)',
+                  border: '1px solid var(--color-border)',
+                  color: 'var(--color-white)',
+                  width: '36px',
+                  height: '36px',
+                  borderRadius: '4px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  cursor: 'pointer',
+                  fontSize: '1.4rem',
+                  lineHeight: 1,
+                  transition: 'var(--transition-fast)',
+                }}
+                aria-label="Close modal"
+              >
+                &times;
+              </button>
+            </div>
 
             {/* 4:3 Aspect Ratio Header Photo */}
             <div style={{
@@ -1125,6 +1286,33 @@ export default function EventsPage() {
               </button>
             </form>
           </div>
+        </div>
+      )}
+
+      {/* Toast Notification */}
+      {toast.message && (
+        <div
+          style={{
+            position: 'fixed',
+            bottom: '2rem',
+            right: '2rem',
+            backgroundColor: 'var(--color-black-card)',
+            border: `1px solid ${toast.type === 'error' ? '#ef4444' : 'var(--color-bronze)'}`,
+            color: 'var(--color-white)',
+            padding: '0.85rem 1.25rem',
+            borderRadius: '6px',
+            fontSize: '0.85rem',
+            zIndex: 100000,
+            boxShadow: '0 8px 30px rgba(0,0,0,0.7)',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '0.5rem',
+          }}
+        >
+          <span style={{ color: toast.type === 'error' ? '#ef4444' : 'var(--color-bronze)' }}>
+            {toast.type === 'error' ? '✕' : '✓'}
+          </span>
+          <span>{toast.message}</span>
         </div>
       )}
     </main>

@@ -55,12 +55,12 @@ async function getInitialArticles(isSubscriber) {
       orderBy: { order: 'asc' },
     });
 
-    const FREE_CATEGORIES = ['fashion', 'culture', 'businessnews', 'sports', 'events', 'event', 'sleekpeak'];
+    const FREE_CATEGORIES = ['fashion', 'culture', 'businessnews', 'sports', 'events', 'event', 'sleekpeak', 'comics', 'comic'];
 
     return articles.map((art) => {
       const normCat = art.category?.toLowerCase().replace(/\s+/g, '') || '';
       const isSleekPeak = normCat === 'sleekpeak';
-      const isComics = normCat === 'comics';
+      const isComics = normCat === 'comics' || normCat === 'comic';
       const isFree = FREE_CATEGORIES.includes(normCat);
 
       if (!isSubscriber) {
@@ -69,14 +69,6 @@ async function getInitialArticles(isSubscriber) {
             ...art,
             content: art.content,
             isPaywalled: false,
-            isSleekPeak,
-            isComics,
-          };
-        } else if (isComics) {
-          return {
-            ...art,
-            content: '',
-            isPaywalled: true,
             isSleekPeak,
             isComics,
           };

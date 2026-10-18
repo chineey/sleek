@@ -1,13 +1,14 @@
 import { NextResponse } from 'next/server';
 import prisma from '../../../../lib/prisma';
 import { createSubscriberToken } from '../../../../lib/subscriberToken';
+import { getBaseUrl } from '../../../../lib/url';
 
 export const dynamic = 'force-dynamic';
 
 export async function GET(req) {
   const { searchParams } = new URL(req.url);
   const token = searchParams.get('token');
-  const nextAuthUrl = process.env.NEXTAUTH_URL || 'http://localhost:3000';
+  const nextAuthUrl = getBaseUrl(req);
 
   if (!token) {
     return NextResponse.redirect(`${nextAuthUrl}?login_error=invalid_token`);

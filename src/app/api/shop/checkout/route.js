@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import prisma from '../../../../lib/prisma';
 import { initializeTransaction } from '../../../../lib/paystack';
 import { generateOrderReference } from '../../../../lib/orderReference';
+import { getBaseUrl } from '../../../../lib/url';
 
 export async function POST(req) {
   try {
@@ -47,7 +48,7 @@ export async function POST(req) {
     }
 
     const orderReference = generateOrderReference(10);
-    const nextAuthUrl = process.env.NEXTAUTH_URL || 'http://localhost:3000';
+    const nextAuthUrl = getBaseUrl(req);
 
     const isPaystackKeyConfigured = process.env.PAYSTACK_SECRET_KEY && 
       !process.env.PAYSTACK_SECRET_KEY.includes('your-') && 

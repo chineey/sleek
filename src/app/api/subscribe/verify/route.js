@@ -3,13 +3,14 @@ import prisma from '../../../../lib/prisma';
 import { verifyTransaction } from '../../../../lib/paystack';
 import { createSubscriberToken } from '../../../../lib/subscriberToken';
 import { sendSubscriptionConfirmationEmail } from '../../../../lib/email';
+import { getBaseUrl } from '../../../../lib/url';
 
 export const dynamic = 'force-dynamic';
 
 export async function GET(req) {
   const { searchParams } = new URL(req.url);
   const reference = searchParams.get('reference');
-  const nextAuthUrl = process.env.NEXTAUTH_URL || 'http://localhost:3000';
+  const nextAuthUrl = getBaseUrl(req);
 
   if (!reference) {
     return NextResponse.redirect(`${nextAuthUrl}?error=missing_reference`);

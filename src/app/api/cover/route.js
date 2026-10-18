@@ -11,7 +11,7 @@ export async function GET() {
     let settings = await prisma.coverSettings.findUnique({
       where: { id: 1 },
     });
-    
+
     if (!settings) {
       // Create defaults on first fetch if empty
       settings = await prisma.coverSettings.create({
@@ -28,7 +28,7 @@ export async function GET() {
         }
       });
     }
-    
+
     return NextResponse.json(settings);
   } catch (error) {
     console.error('Error fetching cover settings:', error);

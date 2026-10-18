@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import prisma from '../../../../lib/prisma';
 import { initializeTransaction } from '../../../../lib/paystack';
 import { generateOrderReference } from '../../../../lib/orderReference';
+import { getBaseUrl } from '../../../../lib/url';
 
 export async function POST(req) {
   try {
@@ -45,7 +46,7 @@ export async function POST(req) {
     const ticketPrice = event.ticketPrice !== undefined && event.ticketPrice !== null ? event.ticketPrice : 5000;
     const totalPrice = ticketPrice * qty;
     const ticketReference = `SLK-TKT-${generateOrderReference(8)}`;
-    const nextAuthUrl = process.env.NEXTAUTH_URL || 'http://localhost:3000';
+    const nextAuthUrl = getBaseUrl(req);
 
     const isPaystackKeyConfigured =
       process.env.PAYSTACK_SECRET_KEY &&
