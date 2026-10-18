@@ -116,7 +116,7 @@ function ComicsContent() {
   const openReader = (comic, initialPage = 0) => {
     setActiveComic(comic);
     setCurrentPage(initialPage);
-    setIsPaywallBlocked(!isSubscriber && initialPage > 0);
+    setIsPaywallBlocked(!isSubscriber);
     document.body.style.overflow = 'hidden';
     if (typeof window !== 'undefined') {
       window.history.replaceState({}, document.title, `/comics?id=${comic.id}`);
@@ -138,30 +138,26 @@ function ComicsContent() {
   // Next page handler
   const goToNextPage = useCallback(() => {
     if (!activeComic) return;
+    if (!isSubscriber) {
+      setIsPaywallBlocked(true);
+      return;
+    }
     if (currentPage < activeComic.pages.length - 1) {
-      const next = currentPage + 1;
-      // If user is not subscriber and tries to swipe past preview page 0
-      if (!isSubscriber && next > 0) {
-        setIsPaywallBlocked(true);
-      } else {
-        setCurrentPage(next);
-        setIsPaywallBlocked(false);
-      }
+      setCurrentPage((prev) => prev + 1);
     }
   }, [activeComic, currentPage, isSubscriber]);
 
   // Previous page handler
   const goToPrevPage = useCallback(() => {
     if (!activeComic) return;
-    if (isPaywallBlocked) {
-      setIsPaywallBlocked(false);
+    if (!isSubscriber) {
+      setIsPaywallBlocked(true);
       return;
     }
     if (currentPage > 0) {
       setCurrentPage((prev) => prev - 1);
-      setIsPaywallBlocked(false);
     }
-  }, [activeComic, currentPage, isPaywallBlocked]);
+  }, [activeComic, currentPage, isSubscriber]);
 
   // Keyboard navigation
   useEffect(() => {
@@ -370,7 +366,7 @@ function ComicsContent() {
                         position: 'absolute',
                         top: '1rem',
                         right: '1rem',
-                        backgroundColor: 'rgba(186, 156, 135, 0.9)',
+                        backgroundColor: 'rgba(186, 156, 135, 0.95)',
                         color: 'var(--color-black)',
                         padding: '0.3rem 0.6rem',
                         fontSize: '0.65rem',
@@ -379,7 +375,7 @@ function ComicsContent() {
                         textTransform: 'uppercase',
                       }}
                     >
-                      PREVIEW
+                      🔒 LOCKED
                     </span>
                   )}
                 </div>
@@ -444,7 +440,7 @@ function ComicsContent() {
                         gap: '0.35rem',
                       }}
                     >
-                      Read Chapter &rarr;
+                      {isSubscriber ? 'Read Chapter →' : '🔒 Unlock Chapter →'}
                     </span>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
                       <span
@@ -453,7 +449,7 @@ function ComicsContent() {
                           color: 'var(--color-muted)',
                         }}
                       >
-                        {isSubscriber ? 'Full Access' : 'Preview & Unlock'}
+                        {isSubscriber ? 'Full Access' : '🔒 Subscriber Only'}
                       </span>
                       <button
                         type="button"
@@ -815,7 +811,7 @@ function ComicsContent() {
                       marginBottom: '2rem',
                     }}
                   >
-                    You have reached the preview limit. Complete comic chapters, graphic issues, and digital archives require an active subscription (₦1,500 / month).
+                    This comic chapter is exclusive to SLEEK subscribers. Subscribe for ₦1,500 / month to unlock unlimited access to the complete comics archive and all graphic chapters.
                   </p>
 
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
@@ -838,10 +834,7 @@ function ComicsContent() {
                     </Link>
                     <button
                       type="button"
-                      onClick={() => {
-                        setIsPaywallBlocked(false);
-                        setCurrentPage(0);
-                      }}
+                      onClick={closeReader}
                       style={{
                         background: 'transparent',
                         border: '1px solid var(--color-border)',
@@ -853,7 +846,7 @@ function ComicsContent() {
                         cursor: 'pointer',
                       }}
                     >
-                      &larr; Return to Page 1
+                      &larr; Back to Comics Archive
                     </button>
                   </div>
                 </div>

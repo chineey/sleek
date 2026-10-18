@@ -55,7 +55,7 @@ async function getInitialArticles(isSubscriber) {
       orderBy: { order: 'asc' },
     });
 
-    const FREE_CATEGORIES = ['fashion', 'culture', 'businessnews', 'sports', 'events', 'event', 'sleekpeak', 'comics', 'comic'];
+    const FREE_CATEGORIES = ['fashion', 'culture', 'businessnews', 'sports', 'events', 'event', 'sleekpeak'];
 
     return articles.map((art) => {
       const normCat = art.category?.toLowerCase().replace(/\s+/g, '') || '';

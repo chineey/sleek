@@ -639,10 +639,10 @@ export default function HomeClient({ initialCover, initialIsSubscriber, initialA
                       <div className="card-footer-row">
                         <span className="card-read-more">
                           {isComics
-                            ? 'Read Comic Chapter →'
+                            ? (!isSubscriber ? '🔒 Subscriber Only' : 'Read Comic Chapter →')
                             : isBusinessNews
                             ? 'More Info'
-                            : 'Read Story'}
+                            : (!isSubscriber && article.isPaywalled ? '🔒 Read Story' : 'Read Story')}
                         </span>
                         <button
                           type="button"
