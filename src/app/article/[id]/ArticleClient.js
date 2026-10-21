@@ -2,7 +2,6 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
-import Navbar from '../../../components/Navbar';
 import Comments from '../../../components/Comments';
 
 export default function ArticleClient({ article, isSubscriber }) {
@@ -69,8 +68,6 @@ export default function ArticleClient({ article, isSubscriber }) {
 
   return (
     <>
-      <Navbar />
-
       <main className="standalone-article-page" style={{ minHeight: '100vh', backgroundColor: '#080808', paddingTop: '6rem', paddingBottom: '6rem' }}>
         <div className="reader-content-wrapper" style={{ padding: '2rem 1.5rem', maxWidth: '850px', margin: '0 auto' }}>
           
