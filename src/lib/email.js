@@ -275,7 +275,7 @@ export async function sendNewArticleNotificationEmail(article, recipientEmails =
   }
 
   const nextAuthUrl = getBaseUrl();
-  const articleUrl = `${nextAuthUrl}/#editorial`;
+  const articleUrl = article?.id ? `${nextAuthUrl}/article/${article.id}` : `${nextAuthUrl}/#editorial`;
   const articleTitle = article?.title || 'New SLEEK story';
   const articleCategory = article?.category || 'Latest';
   const articleAuthor = article?.author || 'SLEEK Editorial';
