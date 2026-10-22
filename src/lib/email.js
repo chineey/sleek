@@ -278,14 +278,51 @@ export async function sendNewArticleNotificationEmail(article, recipientEmails =
   const articleUrl = article?.id ? `${nextAuthUrl}/article/${article.id}` : `${nextAuthUrl}/#editorial`;
   const articleTitle = article?.title || 'New SLEEK story';
   const articleCategory = article?.category || 'Latest';
-  const articleAuthor = article?.author || 'SLEEK Editorial';
+  const articleAuthor = article?.author || 'Written by Sleek';
   const articleDate = article?.date || new Date().toISOString().slice(0, 10);
-  const rawContent = article?.content || '';
+
+  let rawContent = article?.content || '';
+
+  // Safely extract synopsis if content is JSON-encoded (e.g. comics chapters)
+  if (typeof rawContent === 'string' && rawContent.trim().startsWith('{')) {
+    try {
+      const parsed = JSON.parse(rawContent);
+      rawContent = parsed.synopsis || parsed.description || parsed.content || '';
+    } catch {}
+  }
+
+  // Clean out HTML tags, entities, literal newlines (\n, /n), and shortcodes
   const previewText = rawContent
+    // Remove in-article image shortcodes like [photo:1]
+    .replace(/\[(photo|image)[:\s-]*\d+\]/gi, '')
+    // Replace closing block tags and <br> with spaces
+    .replace(/<\/(p|div|blockquote|figure|figcaption|h[1-6])>/gi, ' ')
+    .replace(/<br\s*\/?>/gi, ' ')
+    // Strip remaining HTML tags
     .replace(/<[^>]*>/g, ' ')
+    // Strip literal or escaped newlines/breaks: "\n", "\r", "/n", "\t"
+    .replace(/\\n|\\r|\\t|\/n/gi, ' ')
+    // Decode common entities and non-breaking spaces
+    .replace(/&nbsp;/gi, ' ')
+    .replace(/&amp;/gi, '&')
+    .replace(/&quot;/gi, '"')
+    .replace(/&#39;|&apos;/gi, "'")
+    .replace(/&lt;/gi, '<')
+    .replace(/&gt;/gi, '>')
+    // Normalize multiple spaces into a single space
     .replace(/\s+/g, ' ')
     .trim();
-  const teaser = previewText ? previewText.slice(0, 180) : 'A new story has just been published on SLEEK.';
+
+  let teaser = 'A new story has just been published on SLEEK.';
+  if (previewText) {
+    if (previewText.length > 180) {
+      const cut = previewText.slice(0, 180);
+      const lastSpace = cut.lastIndexOf(' ');
+      teaser = (lastSpace > 120 ? cut.slice(0, lastSpace) : cut).trim();
+    } else {
+      teaser = previewText;
+    }
+  }
 
   const brevoApiKey = getEnvVar('BREVO_API_KEY', 'BREVO_KEY', 'SENDINBLUE_API_KEY');
 

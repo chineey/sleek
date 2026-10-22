@@ -28,6 +28,11 @@ export default function Admin() {
   const [newComicPageUrl, setNewComicPageUrl] = useState('');
   const [isUploadingComicPage, setIsUploadingComicPage] = useState(false);
 
+  // In-Article Photos (Multiple Photos) states
+  const [additionalPhotos, setAdditionalPhotos] = useState([]);
+  const [isUploadingAdditional, setIsUploadingAdditional] = useState(false);
+  const [newAdditionalUrl, setNewAdditionalUrl] = useState('');
+
   // UI state
   const [isUploading, setIsUploading] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -35,6 +40,7 @@ export default function Admin() {
 
   // Cropping states
   const [cropImageSrc, setCropImageSrc] = useState('');
+  const [cropTarget, setCropTarget] = useState('main'); // 'main' | 'additional'
   const [pendingFile, setPendingFile] = useState(null);
   const [zoom, setZoom] = useState(1.0);
   const [offset, setOffset] = useState({ x: 0, y: 0 });
@@ -677,7 +683,7 @@ export default function Admin() {
       // Clear fields and set defaults for creating a new article
       setTitle('');
       setCategory('Fashion');
-      setAuthor('Written by Sasha K. Vang');
+      setAuthor('Written by Sleek');
       setDate(
         `Published ${new Date().toLocaleString('en-US', { month: 'long', year: 'numeric' })}`
       );
@@ -685,6 +691,8 @@ export default function Admin() {
       setImageUrl('');
       setComicPages([]);
       setNewComicPageUrl('');
+      setAdditionalPhotos([]);
+      setNewAdditionalUrl('');
       return;
     }
 
@@ -698,6 +706,8 @@ export default function Admin() {
       setImageUrl('');
       setComicPages([]);
       setNewComicPageUrl('');
+      setAdditionalPhotos([]);
+      setNewAdditionalUrl('');
       return;
     }
 
@@ -716,12 +726,18 @@ export default function Admin() {
           if (Array.isArray(parsed.pages)) {
             setComicPages(parsed.pages);
             setContent(parsed.synopsis || parsed.description || '');
+            setAdditionalPhotos([]);
+            setNewAdditionalUrl('');
             return;
           }
         } catch {}
       }
       setComicPages([]);
-      setContent(deformatContent(selected.content));
+      setNewComicPageUrl('');
+      const { text, photos } = extractContentAndPhotos(selected.content);
+      setContent(text);
+      setAdditionalPhotos(photos);
+      setNewAdditionalUrl('');
     }
   };
 
@@ -734,6 +750,7 @@ export default function Admin() {
       return;
     }
 
+    setCropTarget('main');
     setPendingFile(file);
 
     const objectUrl = URL.createObjectURL(file);
@@ -749,6 +766,33 @@ export default function Admin() {
     setZoom(1.0);
     setOffset({ x: 0, y: 0 });
     // Reset file input so selecting the same file triggers onChange
+    e.target.value = '';
+  };
+
+  // Handle in-article photo upload select (triggers same 4:3 crop modal)
+  const handleAdditionalImageUploadSelect = (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (!selectedArticleId || selectedArticleId === '') {
+      setFeedback({ message: 'Please select an action first.', type: 'error' });
+      return;
+    }
+
+    setCropTarget('additional');
+    setPendingFile(file);
+
+    const objectUrl = URL.createObjectURL(file);
+    const testImg = new Image();
+    testImg.onload = () => {
+      if (testImg.naturalWidth && testImg.naturalHeight) {
+        setImageAspect(testImg.naturalWidth / testImg.naturalHeight);
+      }
+    };
+    testImg.src = objectUrl;
+
+    setCropImageSrc(objectUrl);
+    setZoom(1.0);
+    setOffset({ x: 0, y: 0 });
     e.target.value = '';
   };
 
@@ -866,18 +910,33 @@ export default function Admin() {
 
             const data = await res.json();
             if (res.ok && data.url) {
-              if (activeTab === 'cover') {
+              if (cropTarget === 'additional') {
+                setAdditionalPhotos((prev) => [
+                  ...prev,
+                  {
+                    id: `photo-${Date.now()}-${Math.random().toString(36).substr(2, 4)}`,
+                    url: data.url,
+                    caption: '',
+                    placement: 'halfway',
+                  },
+                ]);
+                setFeedback({ message: 'Cropped 4:3 in-article photo uploaded successfully.', type: 'success' });
+              } else if (activeTab === 'cover') {
                 setCoverImage(data.url);
+                setFeedback({ message: 'Cropped photo uploaded successfully.', type: 'success' });
               } else if (activeTab === 'editorial') {
                 setEditorialImage(data.url);
+                setFeedback({ message: 'Cropped photo uploaded successfully.', type: 'success' });
               } else if (activeTab === 'products') {
                 setProductForm((prev) => ({ ...prev, image: data.url }));
+                setFeedback({ message: 'Cropped photo uploaded successfully.', type: 'success' });
               } else if (activeTab === 'events') {
                 setEventImage(data.url);
+                setFeedback({ message: 'Cropped photo uploaded successfully.', type: 'success' });
               } else {
                 setImageUrl(data.url);
+                setFeedback({ message: 'Cropped photo uploaded successfully.', type: 'success' });
               }
-              setFeedback({ message: 'Cropped photo uploaded successfully.', type: 'success' });
             } else {
               setFeedback({ message: data.error || 'Failed to upload photo.', type: 'error' });
             }
@@ -886,6 +945,7 @@ export default function Admin() {
             setFeedback({ message: 'Network error uploading photo.', type: 'error' });
           } finally {
             setIsUploading(false);
+            setCropTarget('main');
           }
         },
         'image/jpeg',
@@ -895,40 +955,131 @@ export default function Admin() {
       console.error('handleConfirmCrop error:', err);
       setFeedback({ message: 'Failed to process image crop.', type: 'error' });
       setIsUploading(false);
+      setCropTarget('main');
     }
   };
 
   const handleCancelCrop = () => {
     setCropImageSrc('');
     setPendingFile(null);
+    setCropTarget('main');
     setZoom(1.0);
     setOffset({ x: 0, y: 0 });
     setIsUploading(false);
   };
 
-  // Convert plain text breaks into premium styled HTML paragraph tags (keeps existing tags intact)
-  const formatContent = (text) => {
-    const trimmed = text.trim();
-    if (trimmed.startsWith('<p>') || trimmed.startsWith('<div') || trimmed.startsWith('<blockquote')) {
-      return trimmed;
-    }
-    return trimmed
+  // Helper to construct in-article figure markup with SLEEK magazine styling
+  const buildFigureHtml = (url, caption, photoIndex, placement) => {
+    const cleanUrl = url.trim();
+    const cleanCaption = (caption || '').trim();
+    const captionHtml = cleanCaption
+      ? `<figcaption class="reader-inline-caption">${cleanCaption}</figcaption>`
+      : '';
+    return `<figure class="reader-inline-figure" data-photo-index="${photoIndex}" data-placement="${placement}"><div class="reader-inline-img-wrapper"><img src="${cleanUrl}" alt="${cleanCaption || 'SLEEK Magazine Editorial'}" class="reader-inline-img" /></div>${captionHtml}</figure>`;
+  };
+
+  // Convert plain text breaks into premium styled HTML paragraph tags (and inserts in-article photos)
+  const formatContent = (text, photos = []) => {
+    let processedText = text ? text.trim() : '';
+    const validPhotos = (photos || []).filter((p) => p && p.url && p.url.trim());
+
+    if (!processedText && validPhotos.length === 0) return '';
+
+    const placedIndices = new Set();
+
+    // 1. Process explicit shortcodes: [photo:1], [photo 1], [photo-1], [photo1], [image:1], etc.
+    validPhotos.forEach((photo, idx) => {
+      const photoNum = idx + 1;
+      const tagRegex = new RegExp(`\\[(photo|image)[:\\s-]*${photoNum}\\]`, 'gi');
+      if (tagRegex.test(processedText)) {
+        const figureHtml = buildFigureHtml(photo.url, photo.caption, photoNum, 'inline');
+        processedText = processedText.replace(tagRegex, `\n\n${figureHtml}\n\n`);
+        placedIndices.add(idx);
+      }
+    });
+
+    // 2. Split into blocks/paragraphs
+    const rawLines = processedText
       .split('\n')
       .map((line) => line.trim())
-      .filter((line) => line !== '')
-      .map((line) => {
-        // Replace tabs with 4 HTML non-breaking spaces
-        const formattedLine = line.replace(/\t/g, '&nbsp;&nbsp;&nbsp;&nbsp;');
-        
-        // If line starts with a quote character (>), wrap in a blockquote
-        if (formattedLine.startsWith('>')) {
-          const quoteContent = formattedLine.substring(1).trim();
-          return `<blockquote class="reader-quote">${quoteContent}</blockquote>`;
+      .filter((line) => line !== '');
+
+    const blocks = rawLines.map((line) => {
+      // If line is already a figure, block element, or paragraph, preserve as-is
+      if (
+        line.startsWith('<figure') ||
+        line.startsWith('<div') ||
+        line.startsWith('<p>') ||
+        line.startsWith('<blockquote')
+      ) {
+        return line;
+      }
+      // Replace tabs with 4 HTML non-breaking spaces
+      const formattedLine = line.replace(/\t/g, '&nbsp;&nbsp;&nbsp;&nbsp;');
+
+      // If line starts with a quote character (>), wrap in a blockquote
+      if (formattedLine.startsWith('>')) {
+        const quoteContent = formattedLine.substring(1).trim();
+        return `<blockquote class="reader-quote">${quoteContent}</blockquote>`;
+      }
+
+      return `<p>${formattedLine}</p>`;
+    });
+
+    // 3. For photos not placed by shortcode, insert by position rule
+    const unplacedPhotos = validPhotos
+      .map((p, idx) => ({ ...p, originalIndex: idx }))
+      .filter((p) => !placedIndices.has(p.originalIndex));
+
+    if (unplacedPhotos.length > 0) {
+      // Find where each paragraph block is located
+      const paragraphBlockIndices = [];
+      blocks.forEach((block, bIdx) => {
+        if (block.startsWith('<p>')) {
+          paragraphBlockIndices.push(bIdx);
         }
-        
-        return `<p>${formattedLine}</p>`;
-      })
-      .join('\n');
+      });
+
+      const totalParagraphs = paragraphBlockIndices.length;
+      const insertions = [];
+
+      unplacedPhotos.forEach((photo) => {
+        const photoNum = photo.originalIndex + 1;
+        let targetPIndex = 1;
+
+        if (photo.placement === 'halfway') {
+          targetPIndex = Math.max(1, Math.floor(totalParagraphs / 2));
+        } else if (photo.placement && photo.placement.startsWith('after-p-')) {
+          const num = parseInt(photo.placement.replace('after-p-', ''), 10);
+          targetPIndex = isNaN(num) ? 1 : Math.max(1, num);
+        } else if (photo.placement === 'inline') {
+          targetPIndex = Math.max(1, Math.floor(totalParagraphs / 2));
+        }
+
+        const figureHtml = buildFigureHtml(
+          photo.url,
+          photo.caption,
+          photoNum,
+          photo.placement || 'halfway'
+        );
+        insertions.push({ targetPIndex, figureHtml });
+      });
+
+      // Sort insertions by targetPIndex descending so splicing doesn't offset subsequent indices
+      insertions.sort((a, b) => b.targetPIndex - a.targetPIndex);
+
+      insertions.forEach(({ targetPIndex, figureHtml }) => {
+        if (totalParagraphs === 0) {
+          blocks.push(figureHtml);
+        } else {
+          const clampedIndex = Math.min(targetPIndex, totalParagraphs);
+          const blockIdxToInsertAfter = paragraphBlockIndices[clampedIndex - 1];
+          blocks.splice(blockIdxToInsertAfter + 1, 0, figureHtml);
+        }
+      });
+    }
+
+    return blocks.join('\n');
   };
 
   // Convert premium HTML article tags back into plain text breaks for editing
@@ -944,6 +1095,161 @@ export default function Admin() {
     text = text.replace(/&nbsp;&nbsp;&nbsp;&nbsp;/g, '\t');
     text = text.replace(/<\/?[^>]+(>|$)/g, '');
     return text.replace(/\n{3,}/g, '\n\n').trim();
+  };
+
+  // Extract both text and in-article photos from saved article HTML
+  const extractContentAndPhotos = (html) => {
+    if (!html) return { text: '', photos: [] };
+
+    let workingHtml = html;
+    const extractedPhotos = [];
+
+    // Match all <figure class="reader-inline-figure" ...> ... </figure>
+    const figureRegex = /<figure[\s\S]*?class=["'][^"']*reader-inline-figure[^"']*["'][\s\S]*?>([\s\S]*?)<\/figure>/gi;
+    let match;
+    const matches = [];
+
+    while ((match = figureRegex.exec(html)) !== null) {
+      matches.push({
+        fullTag: match[0],
+        inner: match[1],
+      });
+    }
+
+    matches.forEach((m, idx) => {
+      const srcMatch = m.fullTag.match(/<img[^>]+src=["']([^"']+)["']/i);
+      const captionMatch = m.fullTag.match(/<figcaption[^>]*>([\s\S]*?)<\/figcaption>/i);
+      const placementMatch = m.fullTag.match(/data-placement=["']([^"']+)["']/i);
+      const indexMatch = m.fullTag.match(/data-photo-index=["']([^"']+)["']/i);
+
+      const url = srcMatch ? srcMatch[1] : '';
+      const caption = captionMatch ? captionMatch[1] : '';
+      const placement = placementMatch ? placementMatch[1] : 'halfway';
+      const photoNum = indexMatch ? parseInt(indexMatch[1], 10) : idx + 1;
+
+      if (url) {
+        extractedPhotos.push({
+          id: `photo-${Date.now()}-${idx}-${Math.random().toString(36).substr(2, 4)}`,
+          url,
+          caption,
+          placement,
+        });
+
+        if (placement === 'inline') {
+          workingHtml = workingHtml.replace(m.fullTag, `\n\n[photo:${photoNum}]\n\n`);
+        } else {
+          workingHtml = workingHtml.replace(m.fullTag, '');
+        }
+      }
+    });
+
+    const text = deformatContent(workingHtml);
+    return { text, photos: extractedPhotos };
+  };
+
+  // In-article photo upload and insertion handlers
+  const handleUploadAdditionalPhotoFile = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setIsUploadingAdditional(true);
+    setFeedback({ message: '', type: '' });
+
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+
+      const res = await fetch('/api/upload', {
+        method: 'POST',
+        body: formData,
+      });
+
+      const data = await res.json();
+      if (res.ok && data.url) {
+        setAdditionalPhotos((prev) => [
+          ...prev,
+          {
+            id: `photo-${Date.now()}-${Math.random().toString(36).substr(2, 4)}`,
+            url: data.url,
+            caption: '',
+            placement: 'halfway',
+          },
+        ]);
+        setFeedback({ message: 'In-article photo uploaded successfully.', type: 'success' });
+      } else {
+        setFeedback({ message: data.error || 'Failed to upload photo.', type: 'error' });
+      }
+    } catch (err) {
+      console.error('In-article photo upload error:', err);
+      setFeedback({ message: 'Network error uploading photo.', type: 'error' });
+    } finally {
+      setIsUploadingAdditional(false);
+      e.target.value = '';
+    }
+  };
+
+  const handleAddAdditionalPhotoUrl = () => {
+    const trimmed = newAdditionalUrl.trim();
+    if (!trimmed) return;
+    setAdditionalPhotos((prev) => [
+      ...prev,
+      {
+        id: `photo-${Date.now()}-${Math.random().toString(36).substr(2, 4)}`,
+        url: trimmed,
+        caption: '',
+        placement: 'halfway',
+      },
+    ]);
+    setNewAdditionalUrl('');
+  };
+
+  const handleUpdateAdditionalPhoto = (index, field, value) => {
+    setAdditionalPhotos((prev) =>
+      prev.map((p, i) => (i === index ? { ...p, [field]: value } : p))
+    );
+  };
+
+  const handleRemoveAdditionalPhoto = (index) => {
+    const photoNum = index + 1;
+    setAdditionalPhotos((prev) => prev.filter((_, i) => i !== index));
+    const regex = new RegExp(`\\n*\\[(photo|image)[:\\s-]*${photoNum}\\]\\n*`, 'gi');
+    setContent((prev) => prev.replace(regex, '\n\n').replace(/\n{3,}/g, '\n\n').trim());
+  };
+
+  const handleInsertPhotoShortcode = (index) => {
+    const textarea = document.getElementById('content');
+    const photoNum = index + 1;
+    const tag = `[photo:${photoNum}]`;
+
+    if (!textarea) {
+      setContent((prev) => (prev ? `${prev}\n\n${tag}\n\n` : tag));
+      setAdditionalPhotos((prev) =>
+        prev.map((p, i) => (i === index ? { ...p, placement: 'inline' } : p))
+      );
+      return;
+    }
+
+    const start = textarea.selectionStart ?? content.length;
+    const end = textarea.selectionEnd ?? content.length;
+    const before = content.substring(0, start);
+    const after = content.substring(end);
+
+    const prefix = before.endsWith('\n\n') || before === '' ? '' : before.endsWith('\n') ? '\n' : '\n\n';
+    const suffix = after.startsWith('\n\n') || after === '' ? '' : after.startsWith('\n') ? '\n' : '\n\n';
+    const insertion = prefix + tag + suffix;
+
+    const newContent = before + insertion + after;
+    setContent(newContent);
+
+    setAdditionalPhotos((prev) =>
+      prev.map((p, i) => (i === index ? { ...p, placement: 'inline' } : p))
+    );
+
+    setTimeout(() => {
+      textarea.focus();
+      const newPos = start + insertion.length;
+      textarea.setSelectionRange(newPos, newPos);
+    }, 50);
   };
 
   // Intercept Tab key in textarea to insert indent character instead of shifting focus
@@ -1038,7 +1344,7 @@ export default function Admin() {
           synopsis: content,
           pages: comicPages,
         })
-      : formatContent(content);
+      : formatContent(content, additionalPhotos);
     const isEditing = selectedArticleId !== 'new';
 
     const url = '/api/articles';
@@ -1087,6 +1393,8 @@ export default function Admin() {
           setSelectedArticleId('');
           setComicPages([]);
           setNewComicPageUrl('');
+          setAdditionalPhotos([]);
+          setNewAdditionalUrl('');
         }
 
         // Refresh articles list to update dropdown & reorder layout
@@ -1132,6 +1440,8 @@ export default function Admin() {
         setSelectedArticleId('');
         setComicPages([]);
         setNewComicPageUrl('');
+        setAdditionalPhotos([]);
+        setNewAdditionalUrl('');
         // Refresh dropdown & reorder list
         await fetchArticles();
       } else {
@@ -1621,6 +1931,7 @@ export default function Admin() {
                     className="form-input"
                     value={author}
                     onChange={(e) => setAuthor(e.target.value)}
+                    placeholder="e.g. Written by Sleek"
                     required
                     disabled={!isFormEnabled || isSubmitting}
                   />
@@ -1640,9 +1951,40 @@ export default function Admin() {
                 </div>
 
                 <div className="form-group">
-                  <label htmlFor="content">
-                    {category.toLowerCase() === 'comics' ? 'Comic Chapter Synopsis' : 'Content'}
-                  </label>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.4rem', flexWrap: 'wrap', gap: '0.5rem' }}>
+                    <label htmlFor="content" style={{ margin: 0 }}>
+                      {category.toLowerCase() === 'comics' ? 'Comic Chapter Synopsis' : 'Content'}
+                    </label>
+                    {category.toLowerCase() !== 'comics' && additionalPhotos.length > 0 && (
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', flexWrap: 'wrap' }}>
+                        <span style={{ fontSize: '0.72rem', color: 'var(--color-muted)', letterSpacing: '0.05em' }}>
+                          Insert at cursor:
+                        </span>
+                        {additionalPhotos.map((photo, pIdx) => (
+                          <button
+                            key={photo.id || pIdx}
+                            type="button"
+                            onClick={() => handleInsertPhotoShortcode(pIdx)}
+                            disabled={!isFormEnabled || isSubmitting}
+                            title={`Click to insert [photo:${pIdx + 1}] at current cursor position`}
+                            style={{
+                              backgroundColor: 'rgba(184, 145, 89, 0.12)',
+                              border: '1px solid var(--color-bronze)',
+                              color: 'var(--color-bronze)',
+                              padding: '0.15rem 0.5rem',
+                              fontSize: '0.7rem',
+                              fontWeight: 600,
+                              cursor: 'pointer',
+                              borderRadius: '2px',
+                              letterSpacing: '0.05em',
+                            }}
+                          >
+                            + [photo:{pIdx + 1}]
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
                   <textarea
                     id="content"
                     className="form-textarea"
@@ -1756,7 +2098,7 @@ export default function Admin() {
                               />
                               <span
                                 style={{
-                                  fontSize: '0.75rem',
+                                    fontSize: '0.75rem',
                                   color: 'var(--color-muted)',
                                   whiteSpace: 'nowrap',
                                   overflow: 'hidden',
@@ -1815,6 +2157,241 @@ export default function Admin() {
                               >
                                 ✕
                               </button>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* In-Article Photos Manager (Multiple Photos Feature) */}
+                {category.toLowerCase() !== 'comics' && (
+                  <div
+                    style={{
+                      marginTop: '2rem',
+                      padding: '1.5rem',
+                      border: '1px solid var(--color-bronze)',
+                      backgroundColor: 'var(--color-black-card)',
+                      borderRadius: '2px',
+                    }}
+                  >
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem', flexWrap: 'wrap', gap: '0.5rem' }}>
+                      <h3
+                        style={{
+                          fontFamily: 'var(--font-serif)',
+                          fontSize: '1.2rem',
+                          color: 'var(--color-bronze)',
+                          margin: 0,
+                        }}
+                      >
+                        In-Article Photos ({additionalPhotos.length})
+                      </h3>
+                      <span style={{ fontSize: '0.75rem', color: 'var(--color-muted)', letterSpacing: '0.05em' }}>
+                        Multiple Photos Feature
+                      </span>
+                    </div>
+
+                    <p style={{ color: 'var(--color-muted)', fontSize: '0.8rem', marginBottom: '1.5rem', lineHeight: '1.6' }}>
+                      Add secondary photos inside your article body. Each photo can be automatically placed after a specific paragraph (e.g. After Paragraph 2, Halfway), or inserted right at your cursor position using the <strong>[photo:X]</strong> tag.
+                    </p>
+
+                    <div style={{ display: 'flex', gap: '0.75rem', marginBottom: '1.5rem', flexWrap: 'wrap' }}>
+                      <label
+                        style={{
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: '0.5rem',
+                          padding: '0.6rem 1.2rem',
+                          backgroundColor: 'transparent',
+                          border: '1px solid var(--color-bronze)',
+                          color: 'var(--color-bronze)',
+                          fontSize: '0.75rem',
+                          letterSpacing: '0.1em',
+                          cursor: !isFormEnabled || isUploadingAdditional || isSubmitting ? 'not-allowed' : 'pointer',
+                          textTransform: 'uppercase',
+                          fontWeight: 600,
+                          opacity: !isFormEnabled || isUploadingAdditional || isSubmitting ? 0.5 : 1,
+                        }}
+                      >
+                        <input
+                          type="file"
+                          accept="image/*"
+                          style={{ display: 'none' }}
+                          disabled={!isFormEnabled || isUploadingAdditional || isSubmitting}
+                          onChange={handleAdditionalImageUploadSelect}
+                        />
+                        {isUploadingAdditional ? 'Uploading Photo...' : '+ Upload In-Article Photo (4:3)'}
+                      </label>
+
+                      <div style={{ display: 'flex', gap: '0.5rem', flex: 1, minWidth: '240px' }}>
+                        <input
+                          type="text"
+                          placeholder="Or paste photo image URL..."
+                          className="form-input"
+                          value={newAdditionalUrl}
+                          onChange={(e) => setNewAdditionalUrl(e.target.value)}
+                          disabled={!isFormEnabled || isSubmitting}
+                          style={{ fontSize: '0.8rem', padding: '0.5rem 0.75rem' }}
+                        />
+                        <button
+                          type="button"
+                          onClick={handleAddAdditionalPhotoUrl}
+                          disabled={!isFormEnabled || !newAdditionalUrl.trim() || isSubmitting}
+                          style={{
+                            backgroundColor: 'transparent',
+                            border: '1px solid var(--color-border)',
+                            color: 'var(--color-white)',
+                            padding: '0 1rem',
+                            fontSize: '0.75rem',
+                            cursor: 'pointer',
+                            textTransform: 'uppercase',
+                          }}
+                        >
+                          Add
+                        </button>
+                      </div>
+                    </div>
+
+                    {additionalPhotos.length === 0 ? (
+                      <p style={{ color: 'var(--color-muted)', fontSize: '0.8rem', fontStyle: 'italic', margin: 0 }}>
+                        No in-article photos added yet. Only the main cover photo will be displayed at the top.
+                      </p>
+                    ) : (
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                        {additionalPhotos.map((photo, pIdx) => (
+                          <div
+                            key={photo.id || pIdx}
+                            style={{
+                              display: 'flex',
+                              flexDirection: 'column',
+                              gap: '0.75rem',
+                              padding: '1rem',
+                              backgroundColor: 'rgba(255, 255, 255, 0.03)',
+                              border: '1px solid var(--color-border)',
+                              borderRadius: '2px',
+                            }}
+                          >
+                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '0.5rem' }}>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '0.85rem' }}>
+                                <span style={{ color: 'var(--color-bronze)', fontSize: '0.85rem', fontWeight: 700 }}>
+                                  Photo {pIdx + 1}
+                                </span>
+                                <code
+                                  style={{
+                                    backgroundColor: 'rgba(184, 145, 89, 0.15)',
+                                    color: 'var(--color-bronze)',
+                                    padding: '0.15rem 0.4rem',
+                                    fontSize: '0.72rem',
+                                    borderRadius: '2px',
+                                  }}
+                                  title="Shortcode to place this photo in text"
+                                >
+                                  [photo:{pIdx + 1}]
+                                </code>
+                              </div>
+
+                              <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+                                <button
+                                  type="button"
+                                  onClick={() => handleInsertPhotoShortcode(pIdx)}
+                                  style={{
+                                    backgroundColor: 'transparent',
+                                    border: '1px solid var(--color-bronze)',
+                                    color: 'var(--color-bronze)',
+                                    padding: '0.3rem 0.75rem',
+                                    fontSize: '0.7rem',
+                                    fontWeight: 600,
+                                    cursor: 'pointer',
+                                    letterSpacing: '0.05em',
+                                    textTransform: 'uppercase',
+                                    borderRadius: '2px',
+                                  }}
+                                  title="Insert [photo:X] tag at current cursor position in Content text"
+                                >
+                                  + Insert at Cursor
+                                </button>
+
+                                <button
+                                  type="button"
+                                  onClick={() => handleRemoveAdditionalPhoto(pIdx)}
+                                  style={{
+                                    background: 'none',
+                                    border: '1px solid rgba(220, 50, 50, 0.4)',
+                                    color: '#ff6b6b',
+                                    padding: '0.3rem 0.6rem',
+                                    cursor: 'pointer',
+                                    fontSize: '0.7rem',
+                                    borderRadius: '2px',
+                                  }}
+                                  title="Delete photo"
+                                >
+                                  ✕ Remove
+                                </button>
+                              </div>
+                            </div>
+
+                            <div style={{ display: 'flex', gap: '1rem', alignItems: 'flex-start', flexWrap: 'wrap' }}>
+                              <a
+                                href={photo.url}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                style={{ display: 'block', flexShrink: 0 }}
+                                title="Click to view full photo"
+                              >
+                                <img
+                                  src={photo.url}
+                                  alt={`Photo ${pIdx + 1}`}
+                                  style={{
+                                    width: '80px',
+                                    height: '60px',
+                                    objectFit: 'cover',
+                                    border: '1px solid var(--color-border)',
+                                    borderRadius: '2px',
+                                  }}
+                                />
+                              </a>
+
+                              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', flex: 1, minWidth: '220px' }}>
+                                <div>
+                                  <label style={{ fontSize: '0.7rem', color: 'var(--color-bronze)', textTransform: 'uppercase', letterSpacing: '0.05em', display: 'block', marginBottom: '0.25rem' }}>
+                                    Placement Position
+                                  </label>
+                                  <select
+                                    className="form-select"
+                                    value={photo.placement || 'halfway'}
+                                    onChange={(e) => handleUpdateAdditionalPhoto(pIdx, 'placement', e.target.value)}
+                                    style={{ fontSize: '0.78rem', padding: '0.4rem 0.6rem' }}
+                                  >
+                                    <option value="halfway">Halfway through article (Auto)</option>
+                                    <option value="after-p-1">After Paragraph 1</option>
+                                    <option value="after-p-2">After Paragraph 2</option>
+                                    <option value="after-p-3">After Paragraph 3</option>
+                                    <option value="after-p-4">After Paragraph 4</option>
+                                    <option value="after-p-5">After Paragraph 5</option>
+                                    <option value="after-p-6">After Paragraph 6</option>
+                                    <option value="after-p-7">After Paragraph 7</option>
+                                    <option value="after-p-8">After Paragraph 8</option>
+                                    <option value="after-p-9">After Paragraph 9</option>
+                                    <option value="after-p-10">After Paragraph 10</option>
+                                    <option value="inline">Manual tag in text ([photo:{pIdx + 1}])</option>
+                                  </select>
+                                </div>
+
+                                <div>
+                                  <label style={{ fontSize: '0.7rem', color: 'var(--color-muted)', textTransform: 'uppercase', letterSpacing: '0.05em', display: 'block', marginBottom: '0.25rem' }}>
+                                    Caption (Optional)
+                                  </label>
+                                  <input
+                                    type="text"
+                                    className="form-input"
+                                    placeholder="e.g. Backstage at Milan Fashion Week — photo by SLEEK Peak"
+                                    value={photo.caption || ''}
+                                    onChange={(e) => handleUpdateAdditionalPhoto(pIdx, 'caption', e.target.value)}
+                                    style={{ fontSize: '0.78rem', padding: '0.4rem 0.6rem' }}
+                                  />
+                                </div>
+                              </div>
                             </div>
                           </div>
                         ))}

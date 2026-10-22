@@ -43,8 +43,26 @@ export async function generateMetadata({ params }) {
     return { title: 'Story Not Found | SLEEK' };
   }
 
-  const cleanExcerpt = article.content
-    ? article.content.replace(/<\/?[^>]+(>|$)/g, '').substring(0, 160) + '...'
+  let rawExcerptContent = article.content || '';
+  if (typeof rawExcerptContent === 'string' && rawExcerptContent.trim().startsWith('{')) {
+    try {
+      const parsed = JSON.parse(rawExcerptContent);
+      rawExcerptContent = parsed.synopsis || parsed.description || parsed.content || '';
+    } catch {}
+  }
+
+  const cleanExcerpt = rawExcerptContent
+    ? rawExcerptContent
+        .replace(/\[(photo|image)[:\s-]*\d+\]/gi, '')
+        .replace(/<\/?[^>]+(>|$)/g, ' ')
+        .replace(/\\n|\\r|\\t|\/n/gi, ' ')
+        .replace(/&nbsp;/gi, ' ')
+        .replace(/&amp;/gi, '&')
+        .replace(/&quot;/gi, '"')
+        .replace(/&#39;|&apos;/gi, "'")
+        .replace(/\s+/g, ' ')
+        .trim()
+        .substring(0, 160) + '...'
     : 'Read the full story on Sleek Magazine.';
 
   return {

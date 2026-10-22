@@ -171,7 +171,23 @@ export default function HomeClient({ initialCover, initialIsSubscriber, initialA
   // Excerpt generation helper (strips HTML and truncates)
   const getExcerpt = (htmlContent) => {
     if (!htmlContent) return '';
-    const text = htmlContent.replace(/<\/?[^>]+(>|$)/g, ''); // Strip HTML tags
+    let content = htmlContent;
+    if (typeof content === 'string' && content.trim().startsWith('{')) {
+      try {
+        const parsed = JSON.parse(content);
+        content = parsed.synopsis || parsed.description || parsed.content || '';
+      } catch {}
+    }
+    const text = content
+      .replace(/\[(photo|image)[:\s-]*\d+\]/gi, '')
+      .replace(/<\/?[^>]+(>|$)/g, ' ')
+      .replace(/\\n|\\r|\\t|\/n/gi, ' ')
+      .replace(/&nbsp;/gi, ' ')
+      .replace(/&amp;/gi, '&')
+      .replace(/&quot;/gi, '"')
+      .replace(/&#39;|&apos;/gi, "'")
+      .replace(/\s+/g, ' ')
+      .trim();
     return text.length > 150 ? text.substring(0, 150) + '...' : text;
   };
 
