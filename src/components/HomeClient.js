@@ -5,22 +5,52 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import Comments from './Comments';
 
-export default function HomeClient({ initialCover, initialIsSubscriber, initialArticles = [] }) {
+export default function HomeClient({ initialCover, initialIsSubscriber, initialArticles = [], initialCategory = 'fashion' }) {
   const router = useRouter();
 
   const normalizeCategory = (cat) => cat?.toLowerCase().replace(/\s+/g, '') || '';
 
-  const getInitialFiltered = (arts) => {
+  const CATEGORY_MAP = {
+    fashion: 'fashion',
+    sports: 'sports',
+    sleekpeak: 'sleekpeak',
+    culture: 'culture',
+    editorial: 'editorial',
+    businessnews: 'business news',
+    business: 'business news',
+    comics: 'comics',
+    comic: 'comics',
+    event: 'event',
+    events: 'event',
+  };
+
+  const getCategoryFromRecentArticle = (arts) => {
+    if (!arts || arts.length === 0) return 'fashion';
+    const sorted = [...arts].sort((a, b) => {
+      const timeA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+      const timeB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+      if (timeA !== timeB) return timeB - timeA;
+      return (b.id || 0) - (a.id || 0);
+    });
+    const mostRecent = sorted[0];
+    const norm = normalizeCategory(mostRecent.category);
+    return CATEGORY_MAP[norm] || norm || 'fashion';
+  };
+
+  const determinedInitialCategory = initialCategory || getCategoryFromRecentArticle(initialArticles);
+
+  const getInitialFiltered = (arts, cat) => {
     if (!arts || arts.length === 0) return [];
-    const fashion = arts.filter(a => normalizeCategory(a.category) === 'fashion');
-    return fashion.length > 0 ? fashion : arts;
+    const norm = normalizeCategory(cat);
+    const filtered = arts.filter(a => normalizeCategory(a.category) === norm);
+    return filtered.length > 0 ? filtered : arts;
   };
 
   const [articles, setArticles] = useState(initialArticles);
-  const [filteredArticles, setFilteredArticles] = useState(() => getInitialFiltered(initialArticles));
+  const [activeCategory, setActiveCategory] = useState(determinedInitialCategory);
+  const [filteredArticles, setFilteredArticles] = useState(() => getInitialFiltered(initialArticles, determinedInitialCategory));
   const [events, setEvents] = useState([]);
   const [isLoadingEvents, setIsLoadingEvents] = useState(false);
-  const [activeCategory, setActiveCategory] = useState('fashion');
   const [isHeroLoaded, setIsHeroLoaded] = useState(false);
 
   // Initialise from server-rendered props — no flash on first paint
@@ -133,9 +163,15 @@ export default function HomeClient({ initialCover, initialIsSubscriber, initialA
         if (res.ok) {
           const data = await res.json();
           setArticles(data);
-          if (activeCategory === 'fashion') {
-            const fashionArticles = data.filter(a => normalizeCategory(a.category) === 'fashion');
-            setFilteredArticles(fashionArticles.length > 0 ? fashionArticles : data);
+          let currentCat = activeCategory;
+          if (!initialArticles || initialArticles.length === 0) {
+            currentCat = getCategoryFromRecentArticle(data);
+            setActiveCategory(currentCat);
+          }
+          const norm = normalizeCategory(currentCat);
+          if (norm !== 'event' && norm !== 'events') {
+            const matching = data.filter(a => normalizeCategory(a.category) === norm);
+            setFilteredArticles(matching.length > 0 ? matching : data);
           }
         }
       } catch (err) {

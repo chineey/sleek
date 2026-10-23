@@ -52,7 +52,10 @@ async function getIsSubscriber() {
 async function getInitialArticles(isSubscriber) {
   try {
     const articles = await prisma.article.findMany({
-      orderBy: { order: 'asc' },
+      orderBy: [
+        { order: 'asc' },
+        { createdAt: 'desc' },
+      ],
     });
 
     const FREE_CATEGORIES = ['fashion', 'culture', 'businessnews', 'sports', 'events', 'event', 'sleekpeak'];
@@ -62,11 +65,13 @@ async function getInitialArticles(isSubscriber) {
       const isSleekPeak = normCat === 'sleekpeak';
       const isComics = normCat === 'comics' || normCat === 'comic';
       const isFree = FREE_CATEGORIES.includes(normCat);
+      const createdAtStr = art.createdAt instanceof Date ? art.createdAt.toISOString() : (art.createdAt || null);
 
       if (!isSubscriber) {
         if (isFree) {
           return {
             ...art,
+            createdAt: createdAtStr,
             content: art.content,
             isPaywalled: false,
             isSleekPeak,
@@ -78,6 +83,7 @@ async function getInitialArticles(isSubscriber) {
             : '';
           return {
             ...art,
+            createdAt: createdAtStr,
             content: previewContent,
             isPaywalled: true,
             isSleekPeak,
@@ -88,6 +94,7 @@ async function getInitialArticles(isSubscriber) {
 
       return {
         ...art,
+        createdAt: createdAtStr,
         isPaywalled: false,
         isSleekPeak,
         isComics,
@@ -107,6 +114,33 @@ export default async function Home() {
     getInitialArticles(isSubscriber),
   ]);
 
+  // Determine category of the most recently uploaded article so the site loads directly on it
+  let initialCategory = 'fashion';
+  if (initialArticles && initialArticles.length > 0) {
+    const sortedByRecent = [...initialArticles].sort((a, b) => {
+      const timeA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+      const timeB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+      if (timeA !== timeB) return timeB - timeA;
+      return (b.id || 0) - (a.id || 0);
+    });
+    const mostRecent = sortedByRecent[0];
+    const norm = mostRecent.category?.toLowerCase().replace(/\s+/g, '') || '';
+    const CATEGORY_MAP = {
+      fashion: 'fashion',
+      sports: 'sports',
+      sleekpeak: 'sleekpeak',
+      culture: 'culture',
+      editorial: 'editorial',
+      businessnews: 'business news',
+      business: 'business news',
+      comics: 'comics',
+      comic: 'comics',
+      event: 'event',
+      events: 'event',
+    };
+    initialCategory = CATEGORY_MAP[norm] || norm || 'fashion';
+  }
+
   return (
     <>
       {cover?.image && (
@@ -116,6 +150,7 @@ export default async function Home() {
         initialCover={cover}
         initialIsSubscriber={isSubscriber}
         initialArticles={initialArticles}
+        initialCategory={initialCategory}
       />
     </>
   );

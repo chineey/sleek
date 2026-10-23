@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { revalidatePath } from 'next/cache';
 import { getServerSession } from 'next-auth/next';
 import { authOptions } from '../auth/[...nextauth]/route';
 import prisma from '../../../lib/prisma';
@@ -29,9 +30,10 @@ export async function GET(req) {
     }
 
     const articles = await prisma.article.findMany({
-      orderBy: {
-        order: 'asc',
-      },
+      orderBy: [
+        { order: 'asc' },
+        { createdAt: 'desc' },
+      ],
     });
 
     // Allow non-subscribers full access to articles in category: fashion, culture, business news, sports, events, sleekpeak
@@ -107,25 +109,58 @@ export async function POST(req) {
       );
     }
 
-    // Determine the highest order number in the DB to place new article at the end
-    const lastArticle = await prisma.article.findFirst({
-      orderBy: {
-        order: 'desc',
-      },
+    // Determine placement: new article uploads as the top in its category.
+    // Fetch all existing articles ordered by order asc, createdAt desc
+    const existingArticles = await prisma.article.findMany({
+      orderBy: [
+        { order: 'asc' },
+        { createdAt: 'desc' },
+      ],
     });
-    const nextOrder = lastArticle ? lastArticle.order + 1 : 0;
 
-    const newArticle = await prisma.article.create({
-      data: {
-        title,
-        category,
-        author,
-        date,
-        image,
-        content,
-        order: nextOrder,
-      },
-    });
+    const normalizeCat = (c) => c?.toLowerCase().replace(/\s+/g, '') || '';
+    const targetCatNorm = normalizeCat(category);
+
+    // Find the first article that belongs to the same category
+    const firstCatIndex = existingArticles.findIndex(
+      (art) => normalizeCat(art.category) === targetCatNorm
+    );
+
+    // If this category already has articles, place the new article right before the first one.
+    // If it's a new category without articles yet, place it at the top (index 0).
+    const insertIndex = firstCatIndex === -1 ? 0 : firstCatIndex;
+
+    // Shift all articles at and after insertIndex by updating their order
+    const updateOperations = [];
+    for (let i = insertIndex; i < existingArticles.length; i++) {
+      updateOperations.push(
+        prisma.article.update({
+          where: { id: existingArticles[i].id },
+          data: { order: i + 1 },
+        })
+      );
+    }
+
+    const [newArticle] = await prisma.$transaction([
+      prisma.article.create({
+        data: {
+          title,
+          category,
+          author,
+          date,
+          image,
+          content,
+          order: insertIndex,
+        },
+      }),
+      ...updateOperations,
+    ]);
+
+    try {
+      revalidatePath('/');
+    } catch (revalidateError) {
+      console.warn('Failed to revalidate home page after article creation:', revalidateError);
+    }
 
     // Send subscriber notifications in background without blocking the admin response
     (async () => {
@@ -186,6 +221,11 @@ export async function PUT(req) {
       },
     });
 
+    try {
+      revalidatePath('/');
+      revalidatePath(`/article/${id}`);
+    } catch {}
+
     return NextResponse.json(updatedArticle);
   } catch (error) {
     console.error('Error updating article:', error);
@@ -228,6 +268,10 @@ export async function DELETE(req) {
       where: { id: articleIdInt },
     });
 
+    try {
+      revalidatePath('/');
+    } catch {}
+
     return NextResponse.json({ message: 'Article deleted successfully.', deletedArticle });
   } catch (error) {
     console.error('Error deleting article:', error);
@@ -267,6 +311,10 @@ export async function PATCH(req) {
         })
       )
     );
+
+    try {
+      revalidatePath('/');
+    } catch {}
 
     return NextResponse.json({ message: 'Ordering layout saved successfully.' });
   } catch (error) {
